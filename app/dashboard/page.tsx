@@ -8,7 +8,7 @@ import { Calendar, FileText, MessageSquare, Heart, TrendingUp, Clock, MapPin, Sp
 
 export default function DashboardPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50/50 via-purple-50/30 to-pink-50/50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50/50 via-purple-50/30 to-pink-50/50 mx-auto">
       <div className="container py-8">
         <div className="space-y-8">
           {/* Header */}

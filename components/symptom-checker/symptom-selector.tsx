@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { X, Search } from "lucide-react"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { X, Search } from "lucide-react";
 
 const commonSymptoms = [
   "Headache",
@@ -29,36 +29,41 @@ const commonSymptoms = [
   "Congestion",
   "Loss of Appetite",
   "Difficulty Sleeping",
-]
+];
 
 interface SymptomSelectorProps {
-  selectedSymptoms: string[]
-  onSymptomsChange: (symptoms: string[]) => void
+  selectedSymptoms: string[];
+  onSymptomsChange: (symptoms: string[]) => void;
 }
 
-export function SymptomSelector({ selectedSymptoms, onSymptomsChange }: SymptomSelectorProps) {
-  const [searchTerm, setSearchTerm] = useState("")
+export function SymptomSelector({
+  selectedSymptoms,
+  onSymptomsChange,
+}: SymptomSelectorProps) {
+  const [searchTerm, setSearchTerm] = useState("");
 
   const filteredSymptoms = commonSymptoms.filter(
-    (symptom) => symptom.toLowerCase().includes(searchTerm.toLowerCase()) && !selectedSymptoms.includes(symptom),
-  )
+    (symptom) =>
+      symptom.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      !selectedSymptoms.includes(symptom)
+  );
 
   const addSymptom = (symptom: string) => {
     if (!selectedSymptoms.includes(symptom)) {
-      onSymptomsChange([...selectedSymptoms, symptom])
+      onSymptomsChange([...selectedSymptoms, symptom]);
     }
-  }
+  };
 
   const removeSymptom = (symptom: string) => {
-    onSymptomsChange(selectedSymptoms.filter((s) => s !== symptom))
-  }
+    onSymptomsChange(selectedSymptoms.filter((s) => s !== symptom));
+  };
 
   const addCustomSymptom = () => {
     if (searchTerm && !selectedSymptoms.includes(searchTerm)) {
-      onSymptomsChange([...selectedSymptoms, searchTerm])
-      setSearchTerm("")
+      onSymptomsChange([...selectedSymptoms, searchTerm]);
+      setSearchTerm("");
     }
-  }
+  };
 
   return (
     <div className="space-y-4">
@@ -91,7 +96,10 @@ export function SymptomSelector({ selectedSymptoms, onSymptomsChange }: SymptomS
             {selectedSymptoms.map((symptom) => (
               <Badge key={symptom} variant="default" className="px-3 py-1">
                 {symptom}
-                <button onClick={() => removeSymptom(symptom)} className="ml-2 hover:text-destructive">
+                <button
+                  onClick={() => removeSymptom(symptom)}
+                  className="ml-2 hover:text-destructive"
+                >
                   <X className="h-3 w-3" />
                 </button>
               </Badge>
@@ -105,12 +113,18 @@ export function SymptomSelector({ selectedSymptoms, onSymptomsChange }: SymptomS
         <p className="text-sm font-medium">Common Symptoms:</p>
         <div className="flex flex-wrap gap-2">
           {filteredSymptoms.slice(0, 20).map((symptom) => (
-            <Button key={symptom} variant="outline" size="sm" onClick={() => addSymptom(symptom)} className="h-8">
+            <Button
+              key={symptom}
+              variant="outline"
+              size="sm"
+              onClick={() => addSymptom(symptom)}
+              className="h-8"
+            >
               {symptom}
             </Button>
           ))}
         </div>
       </div>
     </div>
-  )
+  );
 }

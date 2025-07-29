@@ -114,13 +114,13 @@ export function Header() {
                 className="hover:bg-blue-50 hover:text-blue-600"
                 asChild
               >
-                <Link href="/login">Sign In</Link>
+                <Link href="/sign-in">Sign In</Link>
               </Button>
               <Button
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg"
                 asChild
               >
-                <Link href="/register">Sign Up</Link>
+                <Link href="/sign-up">Sign Up</Link>
               </Button>
             </div>
           )}
@@ -149,7 +149,7 @@ export function Header() {
               {!isLoggedIn && (
                 <div className="flex flex-col space-y-2 pt-4 border-t">
                   <Button variant="ghost" className="justify-start" asChild>
-                    <Link href="/login" onClick={() => setIsOpen(false)}>
+                    <Link href="/sign-in" onClick={() => setIsOpen(false)}>
                       Sign In
                     </Link>
                   </Button>
@@ -157,7 +157,7 @@ export function Header() {
                     className="justify-start bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                     asChild
                   >
-                    <Link href="/register" onClick={() => setIsOpen(false)}>
+                    <Link href="/sign-up" onClick={() => setIsOpen(false)}>
                       Sign Up
                     </Link>
                   </Button>

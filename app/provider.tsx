@@ -32,8 +32,21 @@ const Provider = ({
     user && createNewUser();
   }, [user]);
   useEffect(() => {
-    if (path!="/" && userDetail && path != "register" && !userDetail.isProfileCompleted) {
+    if (typeof userDetail === "undefined") return;
+    if (
+      !user ||
+      (path != "/" &&
+        userDetail &&
+        path != "/register" &&
+        !userDetail.isProfileCompleted)
+    ) {
       router.replace("/register");
+    } else if (
+      userDetail &&
+      userDetail.isProfileCompleted &&
+      path === "/register"
+    ) {
+      router.replace("/dashboard");
     }
   }, [userDetail, router, path]);
 

@@ -31,9 +31,9 @@ export const Patients = pgTable("patients", {
   dateOfBirth: date("date_of_birth").notNull(),
   gender: varchar("gender", { length: 50 }),
   address: text("address"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  medicalCondition: json(),
   medicalSummary: text("medical_summary"),
+  medicalCondition: json("medical_condition"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
 export const Doctors = pgTable("doctors", {
@@ -60,4 +60,3 @@ export const medicalReport = pgTable("medicalReport", {
   content: text().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
-
