@@ -24,53 +24,42 @@ interface Condition {
   name: string;
   common_name: string;
   probability: number;
-  seriousness: string;
-  icd10_code?: string;
-  categories?: string[];
 }
 
 interface ResultsSectionProps {
   results: {
     conditions: Condition[];
-    should_stop: boolean;
-    question?: any;
   };
 }
 
 export function ResultsSection({ results }: ResultsSectionProps) {
-  const getSeriousnessColor = (seriousness: string) => {
-    switch (seriousness.toLowerCase()) {
-      case "serious":
-        return "bg-red-100 text-red-800 border-red-200";
-      case "moderate":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "mild":
-      case "low":
-        return "bg-green-100 text-green-800 border-green-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
+  const getSeverityColor = (probability: number) => {
+    if (probability > 0.7) return "bg-red-100 text-red-800 border-red-200";
+    if (probability > 0.4)
+      return "bg-yellow-100 text-yellow-800 border-yellow-200";
+    return "bg-green-100 text-green-800 border-green-200";
   };
 
-  const getSeriousnessIcon = (seriousness: string) => {
-    switch (seriousness.toLowerCase()) {
-      case "serious":
-        return <AlertCircle className="h-4 w-4" />;
-      case "moderate":
-        return <TrendingUp className="h-4 w-4" />;
-      default:
-        return <Info className="h-4 w-4" />;
-    }
+  const getSeverityLabel = (probability: number) => {
+    if (probability > 0.7) return "High Risk";
+    if (probability > 0.4) return "Medium Risk";
+    return "Low Risk";
   };
 
-  const getRecommendedAction = (seriousness: string, probability: number) => {
-    if (seriousness.toLowerCase() === "serious" || probability > 70) {
+  const getSeverityIcon = (probability: number) => {
+    if (probability > 0.7) return <AlertCircle className="h-4 w-4" />;
+    if (probability > 0.4) return <TrendingUp className="h-4 w-4" />;
+    return <Info className="h-4 w-4" />;
+  };
+
+  const getRecommendedAction = (probability: number) => {
+    if (probability > 0.7) {
       return {
         text: "Seek immediate medical attention",
         urgency: "high",
         color: "bg-red-50 border-red-200 text-red-800",
       };
-    } else if (seriousness.toLowerCase() === "moderate" || probability > 40) {
+    } else if (probability > 0.4) {
       return {
         text: "Consider consulting a healthcare provider",
         urgency: "medium",
@@ -109,10 +98,7 @@ export function ResultsSection({ results }: ResultsSectionProps) {
   }
 
   const topCondition = results.conditions[0];
-  const recommendation = getRecommendedAction(
-    topCondition.seriousness,
-    topCondition.probability
-  );
+  const recommendation = getRecommendedAction(topCondition.probability);
 
   return (
     <div className="space-y-6">
@@ -144,7 +130,7 @@ export function ResultsSection({ results }: ResultsSectionProps) {
       <div className="space-y-4">
         {results.conditions.map((condition, index) => (
           <Card
-            key={condition.id}
+            key={condition.id || index}
             className={`hover:shadow-md transition-shadow ${
               index === 0 ? "ring-2 ring-primary/20" : ""
             }`}
@@ -159,12 +145,12 @@ export function ResultsSection({ results }: ResultsSectionProps) {
                       </Badge>
                     )}
                     <Badge
-                      className={`${getSeriousnessColor(
-                        condition.seriousness
+                      className={`${getSeverityColor(
+                        condition.probability
                       )} flex items-center gap-1`}
                     >
-                      {getSeriousnessIcon(condition.seriousness)}
-                      {condition.seriousness}
+                      {getSeverityIcon(condition.probability)}
+                      {getSeverityLabel(condition.probability)}
                     </Badge>
                   </div>
                   <CardTitle className="text-lg leading-tight">
@@ -176,11 +162,6 @@ export function ResultsSection({ results }: ResultsSectionProps) {
                         Medical name: {condition.name}
                       </CardDescription>
                     )}
-                  {condition.icd10_code && (
-                    <CardDescription className="text-xs font-mono">
-                      ICD-10: {condition.icd10_code}
-                    </CardDescription>
-                  )}
                 </div>
               </div>
             </CardHeader>
@@ -190,25 +171,11 @@ export function ResultsSection({ results }: ResultsSectionProps) {
                 <div className="flex justify-between text-sm">
                   <span className="font-medium">Match Probability</span>
                   <span className="font-semibold">
-                    {condition.probability.toFixed(1)}%
+                    {Math.round(condition.probability * 100)}%
                   </span>
                 </div>
-                <Progress value={condition.probability} className="h-2" />
+                <Progress value={condition.probability * 100} className="h-2" />
               </div>
-
-              {/* Categories */}
-              {condition.categories && condition.categories.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Categories:</p>
-                  <div className="flex flex-wrap gap-1">
-                    {condition.categories.map((category, idx) => (
-                      <Badge key={idx} variant="outline" className="text-xs">
-                        {category}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               <Separator />
 

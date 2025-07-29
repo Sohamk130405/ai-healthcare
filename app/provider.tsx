@@ -16,6 +16,10 @@ export type UserDetail = {
   phoneNumber: number;
   isProfileCompleted: boolean;
   role: Role;
+  address: string;
+  city: string;
+  dateOfBirth: Date;
+  gender:string;
 };
 
 const Provider = ({

@@ -16,6 +16,10 @@ export const Users = pgTable("users", {
   email: varchar({ length: 255 }).notNull().unique(),
   isProfileCompleted: boolean("is_profile_completed").notNull().default(false),
   phoneNumber: varchar("phone_number"),
+  dateOfBirth: date("date_of_birth"),
+  gender: varchar("gender", { length: 50 }),
+  address: text("address"),
+  city: varchar("city"),
   role: varchar()
     .notNull()
     .$default(() => "patient"),
@@ -28,9 +32,6 @@ export const Patients = pgTable("patients", {
       onDelete: "cascade",
     })
     .unique(),
-  dateOfBirth: date("date_of_birth").notNull(),
-  gender: varchar("gender", { length: 50 }),
-  address: text("address"),
   medicalSummary: text("medical_summary"),
   medicalCondition: json("medical_condition"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,6 +24,8 @@ import { Progress } from "@/components/ui/progress";
 import { ResultsSection } from "@/components/symptom-checker/results-section";
 import { Stethoscope, AlertTriangle, Loader2, User } from "lucide-react";
 import { Questionnaire } from "@/components/symptom-checker/questionnaire";
+import { UserDetailContext } from "@/context/UserDetailContext";
+import { getAgeFromDOB } from "@/lib/utils";
 
 const commonSymptoms = [
   "Headache",
@@ -49,8 +51,11 @@ const commonSymptoms = [
 ];
 
 export default function SymptomCheckerPage() {
-  const [age, setAge] = useState<number | string>("");
-  const [sex, setSex] = useState<string>("");
+  const { userDetail } = useContext(UserDetailContext);
+  const [age, setAge] = useState<number | string>(
+    getAgeFromDOB(userDetail?.dateOfBirth!)
+  );
+  const [sex, setSex] = useState<string>(userDetail?.gender!);
   const [symptomText, setSymptomText] = useState("");
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [evidence, setEvidence] = useState<any[]>([]);
@@ -60,7 +65,7 @@ export default function SymptomCheckerPage() {
   const [error, setError] = useState<string | null>(null);
   const [isDiagnosisStarted, setIsDiagnosisStarted] = useState(false);
   const [questionCount, setQuestionCount] = useState(0);
-  const MAX_QUESTIONS = 10;
+  const MAX_QUESTIONS = 5;
 
   const addSymptom = (symptom: string) => {
     if (!selectedSymptoms.includes(symptom)) {
@@ -95,6 +100,7 @@ export default function SymptomCheckerPage() {
   };
 
   const handleInitialSubmit = async () => {
+    console.log(age);
     if (!age || !sex || symptomText.trim().length === 0) {
       setError(
         "Please provide your age, sex, and a description of your symptoms."
@@ -107,7 +113,7 @@ export default function SymptomCheckerPage() {
     setQuestionCount(0);
 
     try {
-      const response = await fetch("/api/parse-and-diagnose", {
+      const response = await fetch("/api/symptom/parse-and-diagnose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: symptomText, age: Number(age), sex }),
@@ -142,7 +148,7 @@ export default function SymptomCheckerPage() {
     }
 
     try {
-      const response = await fetch("/api/continue-diagnosis", {
+      const response = await fetch("/api/symptom/continue-diagnosis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ age: Number(age), sex, evidence: newEvidence }),
@@ -173,7 +179,7 @@ export default function SymptomCheckerPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/continue-diagnosis", {
+      const response = await fetch("/api/symptom/continue-diagnosis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -261,46 +267,6 @@ export default function SymptomCheckerPage() {
     if (!isDiagnosisStarted) {
       return (
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Personal Information
-              </CardTitle>
-              <CardDescription>
-                Please provide some basic information to start the diagnosis.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="age">Age *</Label>
-                  <Input
-                    id="age"
-                    type="number"
-                    placeholder="e.g., 30"
-                    value={age}
-                    onChange={(e) => setAge(e.target.value)}
-                    min="1"
-                    max="120"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sex">Sex *</Label>
-                  <Select value={sex} onValueChange={setSex}>
-                    <SelectTrigger id="sex">
-                      <SelectValue placeholder="Select sex" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="male">Male</SelectItem>
-                      <SelectItem value="female">Female</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

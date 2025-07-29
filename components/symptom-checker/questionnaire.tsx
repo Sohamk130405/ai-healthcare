@@ -15,8 +15,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { HelpCircle, Loader2, ChevronRight } from "lucide-react";
+import { AlertCircle, HelpCircle, Loader2 } from "lucide-react";
 
 interface Choice {
   id: string;
@@ -51,57 +50,63 @@ export function Questionnaire({
   const [selectedAnswers, setSelectedAnswers] = useState<
     Record<string, string | boolean>
   >({});
-  const [errors, setErrors] = useState<string[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setErrors([]);
-    //@ts-ignore
+    setErrors({});
+
     const answers = [];
-    const requiredItems = question.items.filter(
-      (item) => question.type === "single" || question.type === "group_single"
-    );
+    const newErrors: Record<string, string> = {};
 
-    // Validation for required questions
-    if (question.type === "single" || question.type === "group_single") {
-      const missingAnswers = requiredItems.filter(
-        (item) => !selectedAnswers[item.id]
-      );
-      if (missingAnswers.length > 0) {
-        setErrors(missingAnswers.map((item) => `Please answer: ${item.name}`));
-        return;
+    // Validate and collect answers based on question type
+    if (question.type === "single") {
+      const item = question.items[0];
+      const answer = selectedAnswers[item.id];
+      if (!answer) {
+        newErrors[item.id] = "Please select an answer";
+      } else {
+        answers.push({ id: item.id, choice_id: answer });
       }
-    }
-
-    // Format answers based on question type
-    if (question.type === "group_multiple") {
+    } else if (question.type === "group_single") {
       question.items.forEach((item) => {
-        if (selectedAnswers[item.id]) {
+        const answer = selectedAnswers[item.id];
+        if (!answer) {
+          newErrors[item.id] = "Please select an answer";
+        } else {
+          answers.push({ id: item.id, choice_id: answer });
+        }
+      });
+    } else if (question.type === "group_multiple") {
+      question.items.forEach((item) => {
+        const isSelected = selectedAnswers[item.id];
+        if (isSelected) {
           answers.push({ id: item.id, choice_id: "present" });
         }
       });
-    } else {
-      Object.entries(selectedAnswers).forEach(([itemId, choiceId]) => {
-        if (choiceId) {
-          answers.push({ id: itemId, choice_id: choiceId });
-        }
-      });
     }
-    // @ts-ignore
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
     onSubmit(answers);
   };
 
   const handleRadioChange = (itemId: string, choiceId: string) => {
     setSelectedAnswers((prev) => ({ ...prev, [itemId]: choiceId }));
-    setErrors([]);
+    if (errors[itemId]) {
+      setErrors((prev) => ({ ...prev, [itemId]: "" }));
+    }
   };
 
   const handleCheckboxChange = (itemId: string, checked: boolean) => {
     setSelectedAnswers((prev) => ({ ...prev, [itemId]: checked }));
   };
 
-  const getQuestionTypeLabel = () => {
-    switch (question.type) {
+  const getQuestionTypeLabel = (type: string) => {
+    switch (type) {
       case "single":
         return "Single Choice";
       case "group_single":
@@ -120,22 +125,19 @@ export function Questionnaire({
         return (
           <div className="space-y-4">
             <RadioGroup
-              value={(selectedAnswers[singleItem.id] as string) || ""}
+              value={selectedAnswers[singleItem.id] as string}
               onValueChange={(value) => handleRadioChange(singleItem.id, value)}
             >
-              <div className="grid gap-3">
+              <div className="space-y-3">
                 {singleItem.choices.map((choice) => (
-                  <div
-                    key={choice.id}
-                    className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
-                  >
+                  <div key={choice.id} className="flex items-center space-x-3">
                     <RadioGroupItem
                       value={choice.id}
                       id={`${singleItem.id}-${choice.id}`}
                     />
                     <Label
                       htmlFor={`${singleItem.id}-${choice.id}`}
-                      className="flex-1 cursor-pointer font-normal"
+                      className="text-sm font-normal cursor-pointer flex-1"
                     >
                       {choice.label}
                     </Label>
@@ -143,29 +145,33 @@ export function Questionnaire({
                 ))}
               </div>
             </RadioGroup>
+            {errors[singleItem.id] && (
+              <div className="flex items-center space-x-2 text-destructive text-sm">
+                <AlertCircle className="h-4 w-4" />
+                <span>{errors[singleItem.id]}</span>
+              </div>
+            )}
           </div>
         );
 
       case "group_single":
         return (
           <div className="space-y-6">
-            {question.items.map((item, index) => (
+            {question.items.map((item) => (
               <div key={item.id} className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">
-                    {index + 1}
-                  </Badge>
-                  <h4 className="font-medium text-sm">{item.name}</h4>
+                <div className="flex items-center space-x-2">
+                  <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                  <p className="font-medium text-sm">{item.name}</p>
                 </div>
                 <RadioGroup
-                  value={(selectedAnswers[item.id] as string) || ""}
+                  value={selectedAnswers[item.id] as string}
                   onValueChange={(value) => handleRadioChange(item.id, value)}
                 >
-                  <div className="grid gap-2 ml-6">
+                  <div className="space-y-2 ml-6">
                     {item.choices.map((choice) => (
                       <div
                         key={choice.id}
-                        className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted/30 transition-colors"
+                        className="flex items-center space-x-3"
                       >
                         <RadioGroupItem
                           value={choice.id}
@@ -173,7 +179,7 @@ export function Questionnaire({
                         />
                         <Label
                           htmlFor={`${item.id}-${choice.id}`}
-                          className="flex-1 cursor-pointer text-sm font-normal"
+                          className="text-sm font-normal cursor-pointer flex-1"
                         >
                           {choice.label}
                         </Label>
@@ -181,8 +187,11 @@ export function Questionnaire({
                     ))}
                   </div>
                 </RadioGroup>
-                {index < question.items.length - 1 && (
-                  <Separator className="my-4" />
+                {errors[item.id] && (
+                  <div className="flex items-center space-x-2 text-destructive text-sm ml-6">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>{errors[item.id]}</span>
+                  </div>
                 )}
               </div>
             ))}
@@ -193,95 +202,77 @@ export function Questionnaire({
         return (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground mb-4">
-              Select all symptoms that apply to you:
+              Select all that apply:
             </p>
-            <div className="grid gap-3">
-              {question.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+            {question.items.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50"
+              >
+                <Checkbox
+                  id={item.id}
+                  checked={!!selectedAnswers[item.id]}
+                  onCheckedChange={(checked) =>
+                    handleCheckboxChange(item.id, !!checked)
+                  }
+                />
+                <Label
+                  htmlFor={item.id}
+                  className="text-sm font-normal cursor-pointer flex-1"
                 >
-                  <Checkbox
-                    id={item.id}
-                    checked={(selectedAnswers[item.id] as boolean) || false}
-                    onCheckedChange={(checked) =>
-                      handleCheckboxChange(item.id, checked as boolean)
-                    }
-                  />
-                  <Label
-                    htmlFor={item.id}
-                    className="flex-1 cursor-pointer font-normal"
-                  >
-                    {item.name}
-                  </Label>
-                </div>
-              ))}
-            </div>
+                  {item.name}
+                </Label>
+              </div>
+            ))}
           </div>
         );
 
       default:
         return (
-          <div className="text-center py-8 text-muted-foreground">
-            <HelpCircle className="h-8 w-8 mx-auto mb-2" />
-            <p>Question type not supported.</p>
+          <div className="text-center py-8">
+            <AlertCircle className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground">
+              Question type not supported: {question.type}
+            </p>
           </div>
         );
     }
   };
 
   return (
-    <Card className="shadow-lg">
-      <CardHeader className="pb-4">
+    <Card className="w-full">
+      <CardHeader className="space-y-3">
         <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center space-x-2">
+            <Badge variant="outline" className="text-xs">
+              {getQuestionTypeLabel(question.type)}
+            </Badge>
+            {questionNumber && (
               <Badge variant="secondary" className="text-xs">
-                {getQuestionTypeLabel()}
+                Question {questionNumber}
               </Badge>
-              {questionNumber && (
-                <Badge variant="outline" className="text-xs">
-                  Question {questionNumber}
-                </Badge>
-              )}
-            </div>
-            <CardTitle className="text-lg leading-relaxed">
-              {question.text}
-            </CardTitle>
+            )}
           </div>
-          <HelpCircle className="h-5 w-5 text-muted-foreground" />
         </div>
-        {question.type === "group_multiple" && (
-          <CardDescription>
-            You can select multiple options or none if they don't apply.
-          </CardDescription>
-        )}
+        <CardTitle className="text-lg leading-relaxed">
+          {question.text}
+        </CardTitle>
+        <CardDescription className="text-sm">
+          Please provide accurate information to help with the diagnosis.
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Error Messages */}
-          {errors.length > 0 && (
-            <div className="space-y-2">
-              {errors.map((error, index) => (
-                <div
-                  key={index}
-                  className="text-sm text-destructive bg-destructive/10 p-3 rounded-md"
-                >
-                  {error}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Question Content */}
           {renderQuestion()}
 
-          {/* Submit Button */}
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-between items-center pt-4 border-t">
+            <p className="text-xs text-muted-foreground">
+              Your answers help improve diagnosis accuracy
+            </p>
             <Button
               type="submit"
               disabled={isLoading}
-              className="min-w-[120px]"
+              className="min-w-[100px]"
             >
               {isLoading ? (
                 <>
@@ -289,10 +280,7 @@ export function Questionnaire({
                   Processing...
                 </>
               ) : (
-                <>
-                  Continue
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </>
+                "Next Question"
               )}
             </Button>
           </div>

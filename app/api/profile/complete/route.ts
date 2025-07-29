@@ -20,6 +20,10 @@ export async function POST(req: NextRequest) {
       .set({
         phoneNumber: formData.phone,
         isProfileCompleted: true,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        address: formData.address,
+        city: formData.city,
       })
       // @ts-ignore
       .where(eq(Users.email, user.primaryEmailAddress?.emailAddress));
@@ -28,9 +32,6 @@ export async function POST(req: NextRequest) {
       // Upsert into Patients
       await db.insert(Patients).values({
         email: user.primaryEmailAddress?.emailAddress || "",
-        dateOfBirth: formData.dateOfBirth,
-        gender: formData.gender,
-        address: formData.address,
         medicalCondition: {
           pastIllnesses: formData.pastIllnesses,
           chronicConditions: formData.chronicConditions,
