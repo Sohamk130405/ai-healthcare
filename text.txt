@@ -1,0 +1,329 @@
+### *Drizzle ORM Schema*
+
+
+import { relations } from "drizzle-orm";
+import {
+  pgTable,
+  uuid,
+  varchar,
+  boolean,
+  timestamp,
+  serial,
+  integer,
+  primaryKey,
+  unique,
+  text,
+  date,
+  jsonb,
+  decimal,
+  customType,
+  bigint,
+  bigserial,
+  inet,
+} from "drizzle-orm/pg-core";
+
+// Custom type for PostGIS GEOGRAPHY
+const geography = customType<{ data: string }>({
+  dataType() {
+    return 'geography(Point, 4326)';
+  },
+});
+
+// --- Core User and Role Tables ---
+
+export const users = pgTable("users", {
+  userId: uuid("user_id").primaryKey().defaultRandom(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  phoneNumber: varchar("phone_number", { length: 20 }).unique(),
+  passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+  isVerified: boolean("is_verified").default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const roles = pgTable("roles", {
+  roleId: serial("role_id").primaryKey(),
+  roleName: varchar("role_name", { length: 50 }).notNull().unique(), // 'patient', 'doctor', 'admin'
+});
+
+export const userRoles = pgTable(
+  "user_roles",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.userId),
+    roleId: integer("role_id")
+      .notNull()
+      .references(() => roles.roleId),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.roleId] }),
+  })
+);
+
+// --- Profile Tables ---
+
+export const patients = pgTable("patients", {
+  patientId: uuid("patient_id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.userId)
+    .unique(),
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  dateOfBirth: date("date_of_birth").notNull(),
+  gender: varchar("gender", { length: 50 }),
+  address: text("address"),
+  insuranceInfo: jsonb("insurance_info"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const doctors = pgTable("doctors", {
+  doctorId: uuid("doctor_id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.userId)
+    .unique(),
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  specialization: varchar("specialization", { length: 100 }).notNull(),
+  qualifications: text("qualifications"),
+  licenseNumber: varchar("license_number", { length: 100 }).notNull().unique(),
+  verificationStatus: varchar("verification_status", { length: 50 }).default("pending"),
+  consultationFee: decimal("consultation_fee", { precision: 10, scale: 2 }),
+  googleCalendarId: varchar("google_calendar_id", { length: 255 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+// --- Clinic and Affiliation Tables ---
+
+export const clinics = pgTable("clinics", {
+  clinicId: uuid("clinic_id").primaryKey().defaultRandom(),
+  clinicName: varchar("clinic_name", { length: 255 }).notNull(),
+  address: text("address").notNull(),
+  city: varchar("city", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+  postalCode: varchar("postal_code", { length: 20 }),
+  phoneNumber: varchar("phone_number", { length: 20 }),
+  operatingHours: jsonb("operating_hours"),
+  location: geography("location"),
+});
+
+export const doctorClinicAffiliations = pgTable(
+  "doctor_clinic_affiliations",
+  {
+    doctorId: uuid("doctor_id")
+      .notNull()
+      .references(() => doctors.doctorId),
+    clinicId: uuid("clinic_id")
+      .notNull()
+      .references(() => clinics.clinicId),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.doctorId, table.clinicId] }),
+  })
+);
+
+// --- Operational Tables ---
+
+export const appointments = pgTable("appointments", {
+  appointmentId: uuid("appointment_id").primaryKey().defaultRandom(),
+  patientId: uuid("patient_id")
+    .notNull()
+    .references(() => patients.patientId),
+  doctorId: uuid("doctor_id")
+    .notNull()
+    .references(() => doctors.doctorId),
+  clinicId: uuid("clinic_id").references(() => clinics.clinicId), // Nullable for video consults
+  appointmentTime: timestamp("appointment_time", { withTimezone: true }).notNull(),
+  durationMinutes: integer("duration_minutes").notNull().default(30),
+  appointmentType: varchar("appointment_type", { length: 50 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull().default("scheduled"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const payments = pgTable("payments", {
+  paymentId: uuid("payment_id").primaryKey().defaultRandom(),
+  appointmentId: uuid("appointment_id")
+    .notNull()
+    .references(() => appointments.appointmentId),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }),
+  status: varchar("status", { length: 50 }).notNull(),
+  paymentGateway: varchar("payment_gateway", { length: 50 }).notNull(),
+  gatewayTransactionId: varchar("gateway_transaction_id", { length: 255 }).unique(),
+  paymentMethod: jsonb("payment_method"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const reviews = pgTable("reviews", {
+  reviewId: uuid("review_id").primaryKey().defaultRandom(),
+  patientId: uuid("patient_id")
+    .notNull()
+    .references(() => patients.patientId),
+  doctorId: uuid("doctor_id")
+    .notNull()
+    .references(() => doctors.doctorId),
+  appointmentId: uuid("appointment_id")
+    .references(() => appointments.appointmentId)
+    .unique(),
+  rating: integer("rating").notNull(),
+  comment: text("comment"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const uploadedDocuments = pgTable("uploaded_documents", {
+  documentId: uuid("document_id").primaryKey().defaultRandom(),
+  patientId: uuid("patient_id")
+    .notNull()
+    .references(() => patients.patientId),
+  documentType: varchar("document_type", { length: 100 }).notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  s3ObjectKey: varchar("s3_object_key", { length: 1024 }).notNull().unique(),
+  fileSizeBytes: bigint("file_size_bytes", { mode: "number" }),
+  ocrStatus: varchar("ocr_status", { length: 50 }).default("pending"),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).defaultNow(),
+});
+
+// --- Auditing Table ---
+
+export const auditTrail = pgTable("audit_trail", {
+  auditId: bigserial("audit_id", { mode: "number" }).primaryKey(),
+  userId: uuid("user_id").references(() => users.userId),
+  action: varchar("action", { length: 255 }).notNull(),
+  targetEntity: varchar("target_entity", { length: 100 }),
+  targetId: uuid("target_id"),
+  details: jsonb("details"),
+  ipAddress: inet("ip_address"),
+  timestamp: timestamp("timestamp", { withTimezone: true }).defaultNow(),
+});
+
+
+// --- RELATIONS ---
+
+export const usersRelations = relations(users, ({ one, many }) => ({
+  patientProfile: one(patients, {
+    fields: [users.userId],
+    references: [patients.userId],
+  }),
+  doctorProfile: one(doctors, {
+    fields: [users.userId],
+    references: [doctors.userId],
+  }),
+  roles: many(userRoles),
+  auditTrails: many(auditTrail),
+}));
+
+export const rolesRelations = relations(roles, ({ many }) => ({
+  users: many(userRoles),
+}));
+
+export const userRolesRelations = relations(userRoles, ({ one }) => ({
+  user: one(users, {
+    fields: [userRoles.userId],
+    references: [users.userId],
+  }),
+  role: one(roles, {
+    fields: [userRoles.roleId],
+    references: [roles.roleId],
+  }),
+}));
+
+export const patientsRelations = relations(patients, ({ one, many }) => ({
+  user: one(users, {
+    fields: [patients.userId],
+    references: [users.userId],
+  }),
+  appointments: many(appointments),
+  reviews: many(reviews),
+  documents: many(uploadedDocuments),
+}));
+
+export const doctorsRelations = relations(doctors, ({ one, many }) => ({
+  user: one(users, {
+    fields: [doctors.userId],
+    references: [users.userId],
+  }),
+  appointments: many(appointments),
+  reviews: many(reviews),
+  clinicAffiliations: many(doctorClinicAffiliations),
+}));
+
+export const clinicsRelations = relations(clinics, ({ many }) => ({
+  doctorAffiliations: many(doctorClinicAffiliations),
+  appointments: many(appointments),
+}));
+
+export const doctorClinicAffiliationsRelations = relations(doctorClinicAffiliations, ({ one }) => ({
+    doctor: one(doctors, {
+        fields: [doctorClinicAffiliations.doctorId],
+        references: [doctors.doctorId],
+    }),
+    clinic: one(clinics, {
+        fields: [doctorClinicAffiliations.clinicId],
+        references: [clinics.clinicId],
+    }),
+}));
+
+export const appointmentsRelations = relations(appointments, ({ one, many }) => ({
+  patient: one(patients, {
+    fields: [appointments.patientId],
+    references: [patients.patientId],
+  }),
+  doctor: one(doctors, {
+    fields: [appointments.doctorId],
+    references: [doctors.doctorId],
+  }),
+  clinic: one(clinics, {
+    fields: [appointments.clinicId],
+    references: [clinics.clinicId],
+  }),
+  payment: one(payments, {
+    fields: [appointments.appointmentId],
+    references: [payments.appointmentId],
+  }),
+  review: one(reviews, {
+    fields: [appointments.appointmentId],
+    references: [reviews.appointmentId],
+  }),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  appointment: one(appointments, {
+    fields: [payments.appointmentId],
+    references: [appointments.appointmentId],
+  }),
+}));
+
+export const reviewsRelations = relations(reviews, ({ one }) => ({
+  patient: one(patients, {
+    fields: [reviews.patientId],
+    references: [patients.patientId],
+  }),
+  doctor: one(doctors, {
+    fields: [reviews.doctorId],
+    references: [doctors.doctorId],
+  }),
+  appointment: one(appointments, {
+    fields: [reviews.appointmentId],
+    references: [appointments.appointmentId],
+  }),
+}));
+
+export const uploadedDocumentsRelations = relations(uploadedDocuments, ({ one }) => ({
+  patient: one(patients, {
+    fields: [uploadedDocuments.patientId],
+    references: [patients.patientId],
+  }),
+}));
+
+export const auditTrailRelations = relations(auditTrail, ({ one }) => ({
+    user: one(users, {
+        fields: [auditTrail.userId],
+        references: [users.userId]
+    })
+}));
+
+
+
