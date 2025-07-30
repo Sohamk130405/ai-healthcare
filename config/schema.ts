@@ -55,17 +55,33 @@ export const Doctors = pgTable("doctors", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
-export const medicalReport = pgTable("medicalReport", {
+// export const medicalReport = pgTable("medicalReport", {
+//   id: integer().primaryKey().generatedAlwaysAsIdentity(),
+//   email: varchar("email")
+//     .notNull()
+//     .references(() => Users.email, {
+//       onDelete: "cascade",
+//     }),
+//   title: varchar().notNull(),
+//   url: varchar().notNull(),
+//   ocr: json("ocr"),
+//   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+// });
+
+export const MedicalReports = pgTable("medical_reports", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  email: varchar("email")
+  reportName: varchar("report_name", { length: 255 }).notNull(),
+  reportUrl: text("report_url").notNull(),
+  reportType: varchar("report_type", { length: 100 }).notNull(),
+  fileSize: integer("file_size").notNull(),
+  fileType: varchar("file_type", { length: 100 }).notNull(),
+  extractedText: text("extracted_text"),
+  structuredData: text("structured_data"),
+  insights: json("insights"),
+  userEmail: varchar("user_email", { length: 255 })
     .notNull()
-    .references(() => Users.email, {
-      onDelete: "cascade",
-    }),
-  title: varchar().notNull(),
-  url: varchar().notNull(),
-  ocr: json("ocr"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    .references(() => Users.email, { onDelete: "cascade" }),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).defaultNow(),
 });
 
 export const Appointments = pgTable("appointments", {
