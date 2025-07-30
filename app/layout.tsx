@@ -10,7 +10,7 @@ import Provider from "./provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "HealthPortal - AI-Powered Healthcare Assistant",
+  title: "MedGuide - AI-Powered Healthcare Assistant",
   description:
     "Get personalized health insights, symptom checking, and connect with healthcare professionals through our AI-powered platform.",
   generator: "v0.dev",

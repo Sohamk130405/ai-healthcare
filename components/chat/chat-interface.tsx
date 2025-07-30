@@ -1,223 +1,239 @@
-"use client"
+"use client";
 
-import type React from "react"
+import { useState, useRef, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Send, Bot, User, AlertCircle, RefreshCw } from "lucide-react";
+import { useChat } from "ai/react";
 
-import { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Send, Mic, MicOff, Bot, User } from "lucide-react"
-
-interface Message {
-  id: string
-  content: string
-  sender: "user" | "ai"
-  timestamp: Date
+interface ChatInterfaceProps {
+  conversationId?: string;
 }
 
-export function ChatInterface() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      content:
-        "Hello! I'm your AI health assistant. How can I help you today? You can ask me about symptoms, general health questions, or get guidance on when to see a doctor.",
-      sender: "ai",
-      timestamp: new Date(),
-    },
-  ])
-  const [inputValue, setInputValue] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [isRecording, setIsRecording] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const messagesContainerRef = useRef<HTMLDivElement>(null)
+export function ChatInterface({ conversationId }: ChatInterfaceProps) {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showDisclaimer, setShowDisclaimer] = useState(true);
+
+  const {
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit,
+    isLoading,
+    error,
+    reload,
+  } = useChat({
+    api: "/api/chat",
+    initialMessages: [],
+  });
 
   const scrollToBottom = () => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
-    }
-  }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+    scrollToBottom();
+  }, [messages]);
 
-  const sendMessage = async () => {
-    if (!inputValue.trim()) return
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content: inputValue,
-      sender: "user",
-      timestamp: new Date(),
-    }
-
-    setMessages((prev) => [...prev, userMessage])
-    setInputValue("")
-    setIsLoading(true)
-
-    // Simulate AI response
-    setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content:
-          "I understand your concern. Based on what you've described, I'd recommend monitoring your symptoms closely. If they persist or worsen, please consider consulting with a healthcare professional. Would you like me to help you find specialists in your area or check for related symptoms?",
-        sender: "ai",
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, aiMessage])
-      setIsLoading(false)
-    }, 1500)
-  }
-
-  const toggleRecording = () => {
-    setIsRecording(!isRecording)
-    // Voice recording logic would go here
-  }
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
-  }
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      {/* Header */}
-      <div className="hidden lg:block bg-white border-b px-6 py-4 flex-shrink-0">
-        <div className="flex items-center">
-          <Bot className="h-8 w-8 text-blue-600 mr-3" />
-          <div>
-            <h1 className="text-lg font-semibold text-gray-900">AI Health Assistant</h1>
-            <p className="text-sm text-gray-500">Get personalized health advice and guidance</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Messages Area - Scrollable */}
-      <div
-        ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto scroll-smooth"
-        style={{ scrollBehavior: "smooth" }}
-      >
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="space-y-6">
-            {messages.map((message) => (
-              <div key={message.id} className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`flex items-start space-x-3 max-w-[85%] ${
-                    message.sender === "user" ? "flex-row-reverse space-x-reverse" : ""
-                  }`}
+    <div className="flex flex-col h-full">
+      {/* Health Disclaimer */}
+      {showDisclaimer && (
+        <Card className="mb-4 border-amber-200 bg-amber-50">
+          <CardContent className="p-4">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm text-amber-800">
+                  <strong>Health Disclaimer:</strong> This AI assistant provides
+                  general health information only. Always consult healthcare
+                  professionals for medical advice. In emergencies, contact
+                  emergency services immediately.
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 text-amber-700 hover:text-amber-800 p-0 h-auto"
+                  onClick={() => setShowDisclaimer(false)}
                 >
-                  <Avatar className="h-10 w-10 flex-shrink-0">
-                    {message.sender === "ai" ? (
-                      <>
-                        <AvatarFallback className="bg-blue-600 text-white">
-                          <Bot className="h-5 w-5" />
-                        </AvatarFallback>
-                      </>
-                    ) : (
-                      <>
-                        <AvatarFallback className="bg-gray-600 text-white">
-                          <User className="h-5 w-5" />
-                        </AvatarFallback>
-                      </>
-                    )}
-                  </Avatar>
-                  <div className="flex flex-col">
-                    <Card
-                      className={`p-4 ${
-                        message.sender === "user"
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-white border-gray-200 shadow-sm"
-                      }`}
-                    >
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-                    </Card>
-                    <p
-                      className={`text-xs mt-2 px-1 ${
-                        message.sender === "user" ? "text-right text-gray-500" : "text-left text-gray-500"
-                      }`}
-                    >
-                      {message.timestamp.toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                </div>
+                  Dismiss
+                </Button>
               </div>
-            ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="flex items-start space-x-3 max-w-[85%]">
-                  <Avatar className="h-10 w-10 flex-shrink-0">
-                    <AvatarFallback className="bg-blue-600 text-white">
-                      <Bot className="h-5 w-5" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col">
-                    <Card className="p-4 bg-white border-gray-200 shadow-sm">
-                      <div className="flex items-center space-x-2">
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                          <div
-                            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                            style={{ animationDelay: "0.1s" }}
-                          />
-                          <div
-                            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                            style={{ animationDelay: "0.2s" }}
-                          />
-                        </div>
-                        <span className="text-sm text-gray-500">AI is thinking...</span>
-                      </div>
-                    </Card>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto space-y-4 p-4">
+        {messages.length === 0 && (
+          <div className="text-center py-8">
+            <Bot className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Welcome to AI Health Assistant
+            </h3>
+            <p className="text-gray-500 max-w-md mx-auto">
+              I'm here to help with general health questions and provide
+              information. How can I assist you today?
+            </p>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Input Area - Fixed at bottom */}
-      <div className="bg-white border-t flex-shrink-0">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-end space-x-3">
-            <div className="flex-1 relative">
-              <Input
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Ask about your health concerns..."
-                onKeyPress={handleKeyPress}
-                className="pr-12 min-h-[44px] resize-none"
-                disabled={isLoading}
-              />
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={toggleRecording}
-                className={`absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 ${
-                  isRecording ? "text-red-500" : "text-gray-400 hover:text-gray-600"
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`flex items-start space-x-3 ${
+              message.role === "user" ? "flex-row-reverse space-x-reverse" : ""
+            }`}
+          >
+            <Avatar className="h-8 w-8">
+              {message.role === "user" ? (
+                <>
+                  <AvatarImage src="/placeholder.svg?height=32&width=32&text=U" />
+                  <AvatarFallback>
+                    <User className="h-4 w-4" />
+                  </AvatarFallback>
+                </>
+              ) : (
+                <>
+                  <AvatarImage src="/placeholder.svg?height=32&width=32&text=AI" />
+                  <AvatarFallback className="bg-blue-100">
+                    <Bot className="h-4 w-4 text-blue-600" />
+                  </AvatarFallback>
+                </>
+              )}
+            </Avatar>
+            <div
+              className={`flex-1 max-w-3xl ${
+                message.role === "user" ? "text-right" : ""
+              }`}
+            >
+              <div className="flex items-center space-x-2 mb-1 w-fit ml-auto">
+                <Badge
+                  variant={message.role === "user" ? "default" : "secondary"}
+                >
+                  {message.role === "user" ? "You" : "AI Assistant"}
+                </Badge>
+                <span className="text-xs text-gray-500">
+                  {formatTime(message.createdAt || new Date())}
+                </span>
+              </div>
+              <Card
+                className={`${
+                  message.role === "user"
+                    ? "bg-blue-600 text-white border-blue-600 w-fit ml-auto"
+                    : "bg-gray-50 border-gray-200"
                 }`}
               >
-                {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-              </Button>
+                <CardContent className="p-3">
+                  <p className="text-sm whitespace-pre-wrap">
+                    {message.content}
+                  </p>
+                </CardContent>
+              </Card>
             </div>
-            <Button onClick={sendMessage} disabled={!inputValue.trim() || isLoading} className="h-[44px] px-6">
-              <Send className="h-4 w-4" />
-            </Button>
           </div>
-          <p className="text-xs text-gray-500 mt-2 text-center">
-            AI responses are for informational purposes only. Always consult healthcare professionals for medical
-            advice.
-          </p>
-        </div>
+        ))}
+
+        {isLoading && (
+          <div className="flex items-start space-x-3">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-blue-100">
+                <Bot className="h-4 w-4 text-blue-600" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <Badge variant="secondary" className="mb-2">
+                AI Assistant
+              </Badge>
+              <Card className="bg-gray-50 border-gray-200">
+                <CardContent className="p-3">
+                  <div className="flex items-center space-x-2">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                      <div
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "0.1s" }}
+                      ></div>
+                      <div
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "0.2s" }}
+                      ></div>
+                    </div>
+                    <span className="text-sm text-gray-500">
+                      AI is thinking...
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-start space-x-3">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-red-100">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <Badge variant="destructive" className="mb-2">
+                Error
+              </Badge>
+              <Card className="bg-red-50 border-red-200">
+                <CardContent className="p-3">
+                  <p className="text-sm text-red-800 mb-2">
+                    Sorry, I encountered an error. This might be due to API
+                    configuration issues.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => reload()}
+                    className="text-red-700 border-red-300 hover:bg-red-100"
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Try Again
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input Form */}
+      <div className="border-t bg-white p-4">
+        <form onSubmit={handleSubmit} className="flex space-x-2">
+          <Input
+            value={input}
+            onChange={handleInputChange}
+            placeholder="Ask me about your health concerns..."
+            className="flex-1"
+            disabled={isLoading}
+          />
+          <Button type="submit" disabled={isLoading || !input.trim()}>
+            <Send className="h-4 w-4" />
+          </Button>
+        </form>
+        <p className="text-xs text-gray-500 mt-2 text-center">
+          This AI provides general information only. Always consult healthcare
+          professionals for medical advice.
+        </p>
       </div>
     </div>
-  )
+  );
 }
