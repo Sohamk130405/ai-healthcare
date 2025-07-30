@@ -56,13 +56,15 @@ export const Doctors = pgTable("doctors", {
 });
 
 export const medicalReport = pgTable("medicalReport", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
   email: varchar("email")
     .notNull()
     .references(() => Users.email, {
       onDelete: "cascade",
-    })
-    .unique(),
-  content: text().notNull(),
+    }),
+  title: varchar().notNull(),
+  url: varchar().notNull(),
+  ocr: json("ocr"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
@@ -85,7 +87,6 @@ export const Appointments = pgTable("appointments", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
-
 
 export const ChatSessions = pgTable("chat_sessions", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),

@@ -6,12 +6,13 @@ import { UploadedFiles } from "@/components/upload/uploaded-files";
 import { OCRResults } from "@/components/upload/ocr-results";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertTriangle, Upload, FileText } from "lucide-react";
-import { toast } from "sonner"; // Add this import
+import { toast } from "sonner";
+import { useUser } from "@clerk/nextjs";
 
 export default function UploadPage() {
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [ocrResults, setOCRResults] = useState<any>(null);
-
+  const { user } = useUser();
   const handleFilesUploaded = async (files: File[]) => {
     const newFiles = files.map((file) => ({
       id: Date.now() + Math.random(),
@@ -29,6 +30,7 @@ export default function UploadPage() {
     for (const newFile of newFiles) {
       const formData = new FormData();
       formData.append("file", newFile.file);
+      formData.append("userEmail", user?.primaryEmailAddress?.emailAddress!); // Replace with actual user email
 
       try {
         const res = await fetch("/api/upload", {
@@ -53,21 +55,10 @@ export default function UploadPage() {
 
         toast.success(`Uploaded ${newFile.name} successfully!`);
 
-        // Simulate OCR results after upload
-        setOCRResults({
-          extractedText:
-            "Patient: John Doe\nDate: 2024-01-15\nTest: Complete Blood Count\nResults:\n- Hemoglobin: 14.2 g/dL (Normal)\n- White Blood Cells: 7,200/μL (Normal)\n- Platelets: 250,000/μL (Normal)\n\nConclusion: All values within normal range.",
-          insights: [
-            "All blood parameters are within normal limits",
-            "No signs of anemia or infection",
-            "Platelet count is healthy",
-          ],
-          recommendations: [
-            "Continue regular health monitoring",
-            "Maintain current lifestyle",
-            "Schedule next checkup in 6 months",
-          ],
-        });
+        // Set OCR results from Mistral AI
+        if (data.ocrResults) {
+          setOCRResults(data.ocrResults);
+        }
       } catch (err: any) {
         setUploadedFiles((prev) =>
           prev.map((f) => (f.id === newFile.id ? { ...f, status: "error" } : f))
