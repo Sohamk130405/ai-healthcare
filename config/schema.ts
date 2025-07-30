@@ -106,17 +106,24 @@ export const Appointments = pgTable("appointments", {
 
 export const ChatSessions = pgTable("chat_sessions", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  userId: integer().references(() => Users.id, { onDelete: "cascade" }),
+  userEmail: varchar("user_email", { length: 255 })
+    .notNull()
+    .references(() => Users.email, { onDelete: "cascade" }),
   title: varchar("title", { length: 255 }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  status: varchar("status", { length: 50 }).$default(() => "active"),
 });
 
 export const ChatMessages = pgTable("chat_messages", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  sessionId: integer().references(() => ChatSessions.id, {
-    onDelete: "cascade",
-  }),
-  sender: varchar("sender", { length: 50 }).notNull(), // 'user' or 'assistant'
+  sessionId: integer("session_id")
+    .notNull()
+    .references(() => ChatSessions.id, {
+      onDelete: "cascade",
+    }),
   content: text("content").notNull(),
+  sender: varchar("sender", { length: 50 }).notNull(), // 'user' or 'ai'
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  metadata: json("metadata"), // For storing AI processing info, tokens, etc.
 });

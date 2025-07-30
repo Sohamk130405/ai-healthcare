@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -53,9 +53,10 @@ const commonSymptoms = [
 export default function SymptomCheckerPage() {
   const { userDetail } = useContext(UserDetailContext);
   const [age, setAge] = useState<number | string>(
-    getAgeFromDOB(userDetail?.dateOfBirth!)
+    getAgeFromDOB(userDetail?.dateOfBirth || 21)
   );
-  const [sex, setSex] = useState<string>(userDetail?.gender!);
+
+  const [sex, setSex] = useState<string>(userDetail?.gender || "Male");
   const [symptomText, setSymptomText] = useState("");
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [evidence, setEvidence] = useState<any[]>([]);
@@ -67,6 +68,12 @@ export default function SymptomCheckerPage() {
   const [questionCount, setQuestionCount] = useState(0);
   const MAX_QUESTIONS = 5;
 
+  useEffect(() => {
+    if (userDetail) {
+      getAgeFromDOB(userDetail.dateOfBirth!);
+      setSex(userDetail.gender);
+    }
+  }, [userDetail, getAgeFromDOB, setSex]);
   const addSymptom = (symptom: string) => {
     if (!selectedSymptoms.includes(symptom)) {
       setSelectedSymptoms([...selectedSymptoms, symptom]);
@@ -101,7 +108,7 @@ export default function SymptomCheckerPage() {
 
   const handleInitialSubmit = async () => {
     console.log(age);
-    if (!age || !sex || symptomText.trim().length === 0) {
+    if (symptomText.trim().length === 0) {
       setError(
         "Please provide your age, sex, and a description of your symptoms."
       );
@@ -339,9 +346,7 @@ export default function SymptomCheckerPage() {
 
               <Button
                 onClick={handleInitialSubmit}
-                disabled={
-                  !age || !sex || symptomText.trim().length === 0 || isLoading
-                }
+                disabled={symptomText.trim().length === 0 || isLoading}
                 className="w-full"
                 size="lg"
               >
