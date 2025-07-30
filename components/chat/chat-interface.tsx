@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, use } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Send, Bot, User, AlertCircle, RefreshCw } from "lucide-react";
 import { useChat } from "ai/react";
+import { useUser } from "@clerk/nextjs";
 
 interface ChatInterfaceProps {
   sessionId?: number;
@@ -34,7 +35,7 @@ export function ChatInterface({
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [dbMessages, setDbMessages] = useState<DatabaseMessage[]>([]);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
-
+  const { user } = useUser();
   // Load conversation history when sessionId changes
   useEffect(() => {
     if (sessionId) {
@@ -115,6 +116,7 @@ export function ChatInterface({
 
   // Create new session if none exists and user sends first message
   const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!sessionId && input.trim()) {
       try {
         const response = await fetch("/api/chat/sessions", {
@@ -230,13 +232,15 @@ export function ChatInterface({
           <div
             key={`${message.id}-${index}`}
             className={`flex items-start space-x-3 ${
-              message.role === "user" ? "flex-row-reverse space-x-reverse w-fit ml-auto" : ""
+              message.role === "user"
+                ? "flex-row-reverse space-x-reverse w-fit ml-auto"
+                : ""
             }`}
           >
             <Avatar className="h-8 w-8">
               {message.role === "user" ? (
                 <>
-                  <AvatarImage src="/placeholder.svg?height=32&width=32&text=U" />
+                  <AvatarImage src={user?.imageUrl} />
                   <AvatarFallback>
                     <User className="h-4 w-4" />
                   </AvatarFallback>
@@ -375,7 +379,11 @@ export function ChatInterface({
           <Input
             value={input}
             onChange={handleInputChange}
-            placeholder="Ask me about your health concerns..."
+            placeholder={
+              sessionId
+                ? "Ask me about your health concerns..."
+                : "Enter Session Title"
+            }
             className="flex-1"
             disabled={isLoading}
           />

@@ -5,10 +5,31 @@ import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { ChatMessages, ChatSessions } from "@/config/schema";
 import { eq, asc } from "drizzle-orm";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { db } from "@/config/db";
+import { currentUser } from "@clerk/nextjs/server";
 
-const sql = neon(process.env.DATABASE_URL!);
-const db = drizzle(sql);
+// Function to clean markdown formatting
+function cleanMarkdownText(text: string): string {
+  return (
+    text
+      // Remove bold formatting
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      // Remove italic formatting
+      .replace(/\*(.*?)\*/g, "$1")
+      // Remove code blocks
+      .replace(/```[\s\S]*?```/g, "")
+      // Remove inline code
+      .replace(/`([^`]+)`/g, "$1")
+      // Remove headers
+      .replace(/^#{1,6}\s+/gm, "")
+      // Remove bullet points and convert to simple dashes
+      .replace(/^\*\s+/gm, "• ")
+      .replace(/^-\s+/gm, "• ")
+      // Remove extra whitespace and normalize line breaks
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  );
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -60,6 +81,8 @@ export async function POST(req: NextRequest) {
     // Combine conversation history with new messages
     const allMessages = [...conversationHistory, ...messages];
 
+    let fullResponseText = "";
+
     const result = await streamText({
       model: google("gemini-2.5-flash"),
       system: `You are a helpful AI health assistant. You provide general health information and guidance, but you always remind users that:
@@ -71,10 +94,20 @@ export async function POST(req: NextRequest) {
       
       Be empathetic, helpful, and provide accurate health information while being clear about your limitations. Ask clarifying questions when needed to provide better assistance.
       
-      You have access to the conversation history, so you can reference previous messages and maintain context throughout the conversation.`,
+      You have access to the conversation history, so you can reference previous messages and maintain context throughout the conversation.
+      
+      Please provide responses in plain text format without markdown formatting. Use simple bullet points (•) for lists and avoid bold, italic, or other markdown syntax.`,
       messages: allMessages,
       maxTokens: 1000,
+      onChunk: ({ chunk }) => {
+        if (chunk.type === "text-delta") {
+          fullResponseText += chunk.textDelta;
+        }
+      },
       onFinish: async (result) => {
+        // Clean the AI response text
+        const cleanedText = cleanMarkdownText(fullResponseText);
+
         // Save both user message and AI response to database if sessionId is provided
         if (sessionId) {
           try {
@@ -90,10 +123,10 @@ export async function POST(req: NextRequest) {
               });
             }
 
-            // Save AI response
+            // Save AI response (cleaned)
             await db.insert(ChatMessages).values({
               sessionId: Number.parseInt(sessionId),
-              content: result.text,
+              content: cleanedText,
               sender: "ai",
               metadata: {
                 tokens: result.usage?.completionTokens || 0,
@@ -114,6 +147,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Return the stream response directly
     return result.toDataStreamResponse();
   } catch (error) {
     console.error("Chat API error:", error);
