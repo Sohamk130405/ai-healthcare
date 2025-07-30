@@ -8,6 +8,7 @@ import {
   timestamp,
   decimal,
   json,
+  time,
 } from "drizzle-orm/pg-core";
 
 export const Users = pgTable("users", {
@@ -48,6 +49,7 @@ export const Doctors = pgTable("doctors", {
   qualifications: text("qualifications"),
   licenseNumber: varchar("license_number", { length: 100 }).notNull().unique(),
   consultationFee: decimal("consultation_fee", { precision: 10, scale: 2 }),
+  workingHours: json("working_hours"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
@@ -60,4 +62,24 @@ export const medicalReport = pgTable("medicalReport", {
     .unique(),
   content: text().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const Appointments = pgTable("appointments", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  patientEmail: varchar("patient_email", { length: 255 })
+    .notNull()
+    .references(() => Users.email, { onDelete: "cascade" }),
+  doctorEmail: varchar("doctor_email", { length: 255 })
+    .notNull()
+    .references(() => Users.email, { onDelete: "cascade" }),
+  date: date("appointment_date").notNull(),
+  startTime: time("start_time", { precision: 0 }).notNull(),
+  endTime: time("end_time", { precision: 0 }).notNull(),
+  status: varchar("status", { length: 50 })
+    .notNull()
+    .$default(() => "pending"), // e.g. pending, confirmed, cancelled, completed
+  notes: text("notes"),
+  reason: text("reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
