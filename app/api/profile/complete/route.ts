@@ -1,3 +1,4 @@
+import { Role } from "@/app/provider";
 import { db } from "@/config/db";
 import { Users, Patients, Doctors } from "@/config/schema";
 import { currentUser } from "@clerk/nextjs/server";
@@ -12,7 +13,6 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { userType, ...formData } = body;
-
   try {
     // Update Users table
     await db
@@ -24,11 +24,12 @@ export async function POST(req: NextRequest) {
         gender: formData.gender,
         address: formData.address,
         city: formData.city,
+        role: userType,
       })
       // @ts-ignore
       .where(eq(Users.email, user.primaryEmailAddress?.emailAddress));
 
-    if (userType === "patient") {
+    if (userType === "patient" || userType === Role.PATIENT) {
       // Upsert into Patients
       await db.insert(Patients).values({
         email: user.primaryEmailAddress?.emailAddress || "",
@@ -41,14 +42,15 @@ export async function POST(req: NextRequest) {
           familyHistory: formData.familyHistory,
         },
       });
-    } else if (userType === "doctor") {
+    } else if (userType === "doctor" || userType === Role.DOCTOR) {
       // Upsert into Doctors
       await db.insert(Doctors).values({
         email: user.primaryEmailAddress?.emailAddress || "",
         specialization: formData.specialization,
-        qualifications: formData.education,
+        qualifications: formData.qualifications,
         licenseNumber: formData.licenseNumber,
         consultationFee: formData.consultationFee,
+        workingHours: formData.workingHours,
       });
     }
 

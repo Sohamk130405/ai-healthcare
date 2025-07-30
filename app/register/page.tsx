@@ -23,6 +23,14 @@ import axios from "axios";
 import { UserDetailContext } from "@/context/UserDetailContext";
 import { Role, UserDetail } from "../provider";
 
+interface WorkingHours {
+  [key: string]: {
+    start: string;
+    end: string;
+    available: boolean;
+  };
+}
+
 export default function RegisterPage() {
   const { setUserDetail } = useContext(UserDetailContext);
   const [userType, setUserType] = useState<Role | null>(null);
@@ -46,16 +54,17 @@ export default function RegisterPage() {
     // Doctor professional info
     licenseNumber: "",
     specialization: "",
-    experience: "",
-    education: "",
-    hospitalAffiliation: "",
     consultationFee: "",
-    bio: "",
+    qualifications: "",
+    workingHours: {} as WorkingHours,
   });
 
-  const handleInputChange = useCallback((field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  }, []);
+  const handleInputChange = useCallback(
+    (field: string, value: string | WorkingHours) => {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    },
+    []
+  );
 
   const handleArrayAdd = useCallback((field: string, item: string) => {
     setFormData((prev) => ({
@@ -214,11 +223,9 @@ export default function RegisterPage() {
                 formData={{
                   licenseNumber: formData.licenseNumber,
                   specialization: formData.specialization,
-                  experience: formData.experience,
-                  education: formData.education,
-                  hospitalAffiliation: formData.hospitalAffiliation,
+                  qualifications: formData.qualifications,
                   consultationFee: formData.consultationFee,
-                  bio: formData.bio,
+                  workingHours: formData.workingHours,
                 }}
                 onInputChange={handleInputChange}
               />

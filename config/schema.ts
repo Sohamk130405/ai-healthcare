@@ -50,6 +50,8 @@ export const Doctors = pgTable("doctors", {
   licenseNumber: varchar("license_number", { length: 100 }).notNull().unique(),
   consultationFee: decimal("consultation_fee", { precision: 10, scale: 2 }),
   workingHours: json("working_hours"),
+  rating: integer("rating").default(0),
+  reviewCount: integer("review_count").default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
@@ -82,4 +84,22 @@ export const Appointments = pgTable("appointments", {
   reason: text("reason"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+
+export const ChatSessions = pgTable("chat_sessions", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer().references(() => Users.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 255 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const ChatMessages = pgTable("chat_messages", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  sessionId: integer().references(() => ChatSessions.id, {
+    onDelete: "cascade",
+  }),
+  sender: varchar("sender", { length: 50 }).notNull(), // 'user' or 'assistant'
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
