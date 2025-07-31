@@ -165,16 +165,16 @@ export function AppointmentFilters({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="0">Any Rating</SelectItem>
-                <SelectItem value="4.5">
+                <SelectItem value="4">
                   <div className="flex items-center">
                     <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
-                    4.5+
+                    4+
                   </div>
                 </SelectItem>
-                <SelectItem value="4.0">
+                <SelectItem value="3">
                   <div className="flex items-center">
                     <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
-                    4.0+
+                    3+
                   </div>
                 </SelectItem>
               </SelectContent>

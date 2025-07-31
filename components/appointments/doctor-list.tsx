@@ -4,7 +4,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Star, MapPin, Clock, Calendar, DollarSign, Award } from "lucide-react";
+import {
+  Star,
+  MapPin,
+  Clock,
+  Calendar,
+  DollarSign,
+  Award,
+  Phone,
+} from "lucide-react";
+import Link from "next/link";
 
 interface Doctor {
   id: string;
@@ -201,9 +210,11 @@ export function DoctorList({
                     <Calendar className="h-4 w-4 mr-2" />
                     Book Appointment
                   </Button>
-                  <Button variant="outline" className="flex-1 bg-transparent">
-                    View Profile
-                  </Button>
+                  <Link href={`tel:${doctor.phoneNumber}`} className="flex-1">
+                    <Button variant="outline" className="w-full bg-transparent">
+                      <Phone className="mr-2" /> Call {doctor.phoneNumber}
+                    </Button>
+                  </Link>
                 </div>
 
                 <div className="text-center lg:text-right">
