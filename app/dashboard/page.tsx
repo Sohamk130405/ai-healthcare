@@ -515,7 +515,7 @@ export default function DashboardPage() {
                                 <p className="text-sm text-gray-500">
                                   {appointment.doctorSpecialization}
                                 </p>
-                                <div className="flex items-center mt-1 text-xs text-gray-500">
+                                <div className="flex items-center mt-1 text-xs text-gray-500 flex-wrap">
                                   <Calendar className="mr-1 h-3 w-3" />
                                   {formatDate(appointment.date)}
                                   <Clock className="ml-3 mr-1 h-3 w-3" />
@@ -540,10 +540,10 @@ export default function DashboardPage() {
                                   >
                                     <Button
                                       variant="outline"
-                                      className="bg-transparent border border-green-500"
+                                      size={"icon"}
+                                      className="bg-transparent border border-green-500 rounded-full"
                                     >
-                                      <Phone className="mr-2" /> Call{" "}
-                                      {appointment.phoneNumber}
+                                      <Phone className="text-green-500" />
                                     </Button>
                                   </Link>
                                 </div>
@@ -646,7 +646,7 @@ export default function DashboardPage() {
                                     <div className="text-2xl">
                                       {getCategoryIcon(record.reportType)}
                                     </div>
-                                    <div className="flex-1 min-w-0">
+                                    <div className="flex-1 min-w-0 w-[100px] sm:w-full">
                                       <h4 className="text-lg font-medium truncate">
                                         {record.reportName}
                                       </h4>
@@ -945,7 +945,7 @@ export default function DashboardPage() {
           >
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
+                <DialogTitle className="flex items-center gap-2 line-clamp-1">
                   <span className="text-2xl">
                     {getCategoryIcon(selectedRecord.reportType)}
                   </span>
