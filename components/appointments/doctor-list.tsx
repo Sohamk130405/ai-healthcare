@@ -210,11 +210,7 @@ export function DoctorList({
                     <Calendar className="h-4 w-4 mr-2" />
                     Book Appointment
                   </Button>
-                  <Link href={`tel:${doctor.phoneNumber}`} className="flex-1">
-                    <Button variant="outline" className="w-full bg-transparent">
-                      <Phone className="mr-2" /> Call {doctor.phoneNumber}
-                    </Button>
-                  </Link>
+                  
                 </div>
 
                 <div className="text-center lg:text-right">

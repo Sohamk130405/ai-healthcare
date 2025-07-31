@@ -28,18 +28,17 @@ const specializations = [
 ];
 
 const cities = [
-  "New York",
-  "Los Angeles",
-  "Chicago",
-  "Houston",
-  "Phoenix",
-  "Philadelphia",
-  "San Antonio",
-  "San Diego",
-  "Dallas",
-  "San Jose",
+  "Mumbai",
+  "Delhi",
+  "Bengaluru",
+  "Hyderabad",
+  "Ahmedabad",
+  "Chennai",
+  "Kolkata",
+  "Pune",
+  "Jaipur",
+  "Lucknow",
 ];
-
 const availabilityOptions = ["Today", "Tomorrow", "This Week", "Next Week"];
 
 interface AppointmentFiltersProps {
@@ -87,7 +86,7 @@ export function AppointmentFilters({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Specialization Filter */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Specialization</label>
@@ -151,35 +150,7 @@ export function AppointmentFilters({
             </Select>
           </div>
 
-          {/* Rating Filter */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Minimum Rating</label>
-            <Select
-              value={filters.rating.toString()}
-              onValueChange={(value) =>
-                updateFilter("rating", Number.parseFloat(value))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Any Rating" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">Any Rating</SelectItem>
-                <SelectItem value="4">
-                  <div className="flex items-center">
-                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
-                    4+
-                  </div>
-                </SelectItem>
-                <SelectItem value="3">
-                  <div className="flex items-center">
-                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
-                    3+
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          
         </div>
 
         {/* Active Filters */}

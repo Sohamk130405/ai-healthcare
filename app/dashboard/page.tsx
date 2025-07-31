@@ -41,6 +41,7 @@ import {
   Loader2,
   Star,
   CheckCircle,
+  Phone,
 } from "lucide-react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
@@ -92,6 +93,7 @@ interface Appointment {
   status: "pending" | "confirmed" | "cancelled" | "completed";
   reason: string;
   hasRated?: boolean; // Track if user has already rated this appointment
+  phoneNumber: number;
 }
 
 interface MedicalRecord {
@@ -532,6 +534,18 @@ export default function DashboardPage() {
                                       )}
                                     </div>
                                   )}
+                                  <Link
+                                    href={`tel:${appointment.phoneNumber}`}
+                                    className="ml-auto"
+                                  >
+                                    <Button
+                                      variant="outline"
+                                      className="bg-transparent border border-green-500"
+                                    >
+                                      <Phone className="mr-2" /> Call{" "}
+                                      {appointment.phoneNumber}
+                                    </Button>
+                                  </Link>
                                 </div>
                                 <p className="text-xs text-gray-600 mt-1">
                                   {appointment.reason}
@@ -861,6 +875,15 @@ export default function DashboardPage() {
                   <p className="text-xs text-gray-500">
                     Appointment on {formatDate(ratingModal.appointment.date)}
                   </p>
+                  <Link
+                    href={`tel:${ratingModal.appointment.phoneNumber}`}
+                    className="flex-1"
+                  >
+                    <Button variant="outline" className="bg-transparent">
+                      <Phone className="mr-2" /> Call{" "}
+                      {ratingModal.appointment.phoneNumber}
+                    </Button>
+                  </Link>
                 </div>
 
                 <div className="text-center space-y-4">

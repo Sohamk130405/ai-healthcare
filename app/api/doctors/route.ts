@@ -1,6 +1,6 @@
 import { db } from "@/config/db";
 import { Doctors, Users } from "@/config/schema";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -22,8 +22,8 @@ export async function GET(req: NextRequest) {
         reviewCount: Doctors.reviewCount,
       })
       .from(Doctors)
-      .leftJoin(Users, eq(Doctors.email, Users.email));
-
+      .leftJoin(Users, eq(Doctors.email, Users.email))
+      .orderBy(desc(Doctors.rating));
     return NextResponse.json({ doctors });
   } catch (error: any) {
     return NextResponse.json(
