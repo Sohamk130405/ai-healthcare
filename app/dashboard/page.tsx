@@ -1,5 +1,5 @@
 "use client";
-
+import ReactJson from "react-json-view";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,38 @@ import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { useToast } from "@/hooks/use-toast";
 import { StarRating } from "@/components/ui/start-rating";
+
+const JsonTable = ({ data }: any) => {
+  if (typeof data !== "object" || data === null) {
+    return <span>{String(data)}</span>;
+  }
+
+  return (
+    <table className="w-full text-sm text-left border border-gray-300 rounded mb-2">
+      <tbody>
+        {Object.entries(data).map(([key, value]) => (
+          <tr key={key} className="border-t border-gray-200">
+            <td className="font-medium px-3 py-2 w-1/4 bg-gray-100">{key}</td>
+            <td className="px-3 py-2">
+              {typeof value === "object" && value !== null ? (
+                <details className="bg-white">
+                  <summary className="cursor-pointer text-blue-600 underline">
+                    Expand
+                  </summary>
+                  <div className="mt-2">
+                    <JsonTable data={value} />
+                  </div>
+                </details>
+              ) : (
+                String(value)
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
 
 interface Appointment {
   id: number;
@@ -954,13 +986,25 @@ export default function DashboardPage() {
                   {selectedRecord.structuredData && (
                     <TabsContent value="structured">
                       <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                        <pre className="text-sm whitespace-pre-wrap">
-                          {JSON.stringify(
-                            JSON.parse(selectedRecord.structuredData),
-                            null,
-                            2
-                          )}
-                        </pre>
+                        {(() => {
+                          try {
+                            const outer = JSON.parse(
+                              selectedRecord.structuredData.replace(/\n/g, "")
+                            );
+                            const inner =
+                              typeof outer === "string"
+                                ? JSON.parse(outer)
+                                : outer;
+
+                            return <JsonTable data={inner} />;
+                          } catch (e) {
+                            return (
+                              <p className="text-red-500">
+                                Invalid JSON format
+                              </p>
+                            );
+                          }
+                        })()}
                       </div>
                     </TabsContent>
                   )}

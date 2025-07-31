@@ -19,7 +19,7 @@ export type UserDetail = {
   address: string;
   city: string;
   dateOfBirth: Date;
-  gender:string;
+  gender: string;
 };
 
 const Provider = ({
@@ -50,7 +50,8 @@ const Provider = ({
       userDetail.isProfileCompleted &&
       path === "/register"
     ) {
-      router.replace("/dashboard");
+      if (userDetail.role === "patient") router.replace("/dashboard");
+      else router.replace("/doctor/appointments");
     }
   }, [userDetail, router, path]);
 
