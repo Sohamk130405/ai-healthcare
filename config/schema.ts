@@ -78,6 +78,7 @@ export const MedicalReports = pgTable("medical_reports", {
   extractedText: text("extracted_text"),
   structuredData: text("structured_data"),
   insights: json("insights"),
+  status: varchar("status"),
   userEmail: varchar("user_email", { length: 255 })
     .notNull()
     .references(() => Users.email, { onDelete: "cascade" }),

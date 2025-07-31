@@ -20,6 +20,7 @@ import {
   Bot,
   Stethoscope,
   MessageSquare,
+  Newspaper,
   Calendar,
   Upload,
   Activity,
@@ -54,6 +55,7 @@ export function Header() {
   const aiFeatures = [
     { name: "Symptom Checker", href: "/symptom-checker", icon: Stethoscope },
     { name: "Chat with AI", href: "/chat", icon: MessageSquare },
+    { name: "Insights", href: "/insights", icon: Newspaper },
   ];
 
   // Additional patient features
