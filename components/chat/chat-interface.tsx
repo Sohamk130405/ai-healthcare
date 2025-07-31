@@ -2,28 +2,43 @@
 
 import type React from "react";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Send, Bot, User, ChevronDown, Loader2, FileText } from "lucide-react";
+import {
+  Send,
+  Bot,
+  User,
+  ChevronDown,
+  Loader2,
+  FileText,
+  Search,
+  Brain,
+  Activity,
+  ChevronRight,
+} from "lucide-react";
 import { useChat } from "ai/react";
 import { useUser } from "@clerk/nextjs";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
-// Updated Message interface to use 'role' for consistency with AI SDK's UIMessage
 interface Message {
   id: number;
   content: string;
-  role: "user" | "assistant"; // Changed from 'sender' to 'role'
+  role: "user" | "assistant";
   createdAt: string;
 }
 
 interface ChatInterfaceProps {
   sessionId: string | null;
   onSessionCreated: (sessionId: string) => void;
-  initialMedicalReportIds?: number[]; // New prop for initial context
+  initialMedicalReportIds?: number[];
 }
 
 export function ChatInterface({
@@ -54,76 +69,21 @@ export function ChatInterface({
       sessionId: sessionId,
     },
     onFinish: async () => {
-      // After AI response, reload messages from database if we have a session
       if (sessionId) {
         await loadMessages();
-        setMessages([]); // Clear useChat messages after loading from DB
+        setMessages([]);
       }
     },
   });
 
-  // Load messages from database when session changes
-  useEffect(() => {
-    if (sessionId) {
-      loadMessages();
-      setMessages([]); // Clear useChat messages when switching sessions
-    } else {
-      setDbMessages([]);
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current && messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      container.scrollTop = container.scrollHeight;
     }
-  }, [sessionId, setMessages]);
+  }, []);
 
-  // Auto-scroll logic - improved to handle all message updates
-  useEffect(() => {
-    const scrollToBottom = () => {
-      if (messagesEndRef.current && shouldAutoScroll) {
-        messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-      }
-    };
-
-    // Use requestAnimationFrame to ensure DOM has updated
-    const timeoutId = setTimeout(() => {
-      requestAnimationFrame(scrollToBottom);
-    }, 50);
-
-    return () => clearTimeout(timeoutId);
-  }, [dbMessages, messages, shouldAutoScroll, isLoading]);
-
-  // Handle scroll detection - improved logic
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 150; // Increased threshold
-      const hasMessages = dbMessages.length > 0 || messages.length > 0;
-
-      setShouldAutoScroll(isNearBottom);
-      setShowScrollButton(!isNearBottom && hasMessages);
-    };
-
-    container.addEventListener("scroll", handleScroll, { passive: true });
-
-    // Initial check
-    handleScroll();
-
-    return () => container.removeEventListener("scroll", handleScroll);
-  }, [dbMessages.length, messages.length]);
-
-  // Force scroll to bottom when new messages arrive and user is near bottom
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-
-    const { scrollTop, scrollHeight, clientHeight } = container;
-    const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
-
-    if (isNearBottom) {
-      setShouldAutoScroll(true);
-    }
-  }, [dbMessages.length, messages.length]);
-
-  const loadMessages = async () => {
+  const loadMessages = useCallback(async () => {
     if (!sessionId) return;
 
     setLoading(true);
@@ -132,7 +92,6 @@ export function ChatInterface({
       const data = await response.json();
 
       if (data.messages) {
-        // Map 'sender' from DB to 'role' for consistency
         setDbMessages(
           data.messages.map((msg: any) => ({
             ...msg,
@@ -145,13 +104,53 @@ export function ChatInterface({
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionId]);
 
-  const scrollToBottom = () => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+  // Load messages from database when session changes
+  useEffect(() => {
+    if (sessionId) {
+      loadMessages();
+      setMessages([]);
+    } else {
+      setDbMessages([]);
     }
-  };
+  }, [sessionId, setMessages, loadMessages]);
+
+  // Auto-scroll when messages change and shouldAutoScroll is true
+  useEffect(() => {
+    if (shouldAutoScroll) {
+      const timeoutId = setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [dbMessages, messages, shouldAutoScroll, scrollToBottom]);
+
+  // Handle scroll detection
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 50;
+
+      setShouldAutoScroll(isAtBottom);
+      setShowScrollButton(
+        !isAtBottom && (dbMessages.length > 0 || messages.length > 0)
+      );
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+
+    // Initial check
+    const timeoutId = setTimeout(handleScroll, 100);
+
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      clearTimeout(timeoutId);
+    };
+  }, [dbMessages.length, messages.length]);
 
   const handleScrollToBottom = () => {
     setShouldAutoScroll(true);
@@ -162,13 +161,11 @@ export function ChatInterface({
     e.preventDefault();
 
     const currentInput = input.trim();
-    if (!currentInput) return; // Don't send empty messages
+    if (!currentInput) return;
 
-    // Always enable auto-scroll when user sends a message
     setShouldAutoScroll(true);
 
     if (!sessionId) {
-      // New chat: Create session first, then send the message
       setIsCreatingSession(true);
       try {
         const sessionResponse = await fetch("/api/chat/sessions", {
@@ -186,12 +183,10 @@ export function ChatInterface({
         if (sessionData.success) {
           const newSessionId = sessionData.session.id.toString();
 
-          // Clear the input immediately
           handleInputChange({
             target: { value: "" },
           } as React.ChangeEvent<HTMLInputElement>);
 
-          // Send the message with the new session ID
           await append(
             { role: "user", content: currentInput },
             {
@@ -201,37 +196,40 @@ export function ChatInterface({
             }
           );
 
-          // Only update the session ID after the message is sent
-          // This prevents the premature loading of empty messages from DB
-          setTimeout(() => {
-            onSessionCreated(newSessionId);
-          }, 100); // Small delay to ensure message processing starts
+          onSessionCreated(newSessionId);
         } else {
           console.error("Failed to create session:", sessionData.error);
-          // TODO: Show error toast to user
         }
       } catch (error) {
         console.error(
           "Error during new session creation or first message send:",
           error
         );
-        // TODO: Show error toast to user
       } finally {
         setIsCreatingSession(false);
       }
     } else {
-      // Existing chat: Use the default handleSubmit from useChat
       handleSubmit(e);
     }
   };
 
-  // Format message content for better display
+  // Enhanced message content formatting with better source handling
   const formatMessageContent = (content: string) => {
-    // Split by double newlines to create paragraphs
-    const paragraphs = content.split("\n\n").filter((p) => p.trim());
+    // Split content into main content and sources
+    const sourcesIndex = content.lastIndexOf("\n\nSources:");
+    let mainContent = content;
+    let sources = "";
 
-    return paragraphs.map((paragraph, index) => {
-      // Check if paragraph contains bullet points
+    if (sourcesIndex !== -1) {
+      mainContent = content.substring(0, sourcesIndex);
+      sources = content.substring(sourcesIndex + 2); // Remove the "\n\n" part
+    }
+
+    // Format main content
+    const paragraphs = mainContent.split("\n\n").filter((p) => p.trim());
+
+    const formattedContent = paragraphs.map((paragraph, index) => {
+      // Handle bullet points
       if (paragraph.includes("•")) {
         const lines = paragraph.split("\n");
         return (
@@ -257,24 +255,102 @@ export function ChatInterface({
         );
       }
 
+      // Handle urgent warnings
+      if (paragraph.includes("⚠️ URGENT")) {
+        return (
+          <div
+            key={index}
+            className="mb-3 p-3 bg-red-50 border-l-4 border-red-500 rounded"
+          >
+            <p className="text-red-800 font-medium">{paragraph}</p>
+          </div>
+        );
+      }
+
       return (
         <p key={index} className="mb-3 last:mb-0">
           {paragraph}
         </p>
       );
     });
+
+    // Format sources if they exist
+    let formattedSources = null;
+    if (sources) {
+      const sourceLines = sources.split("\n").filter((line) => line.trim());
+      if (sourceLines.length > 1) {
+        // Skip the "Sources:" header
+        const actualSources = sourceLines.slice(1);
+        formattedSources = (
+          <Collapsible className="mt-4 pt-3 border-t border-gray-200">
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                className="w-full justify-start px-0 py-1 h-auto text-xs text-gray-600 hover:bg-transparent hover:text-gray-800"
+              >
+                <ChevronRight className="h-3 w-3 mr-1 transition-transform data-[state=open]:rotate-90" />
+                <Search className="h-3 w-3 mr-1" />
+                <span className="font-medium">
+                  Sources ({actualSources.length})
+                </span>
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-1 px-2 pb-2">
+              {actualSources.map((source, index) => {
+                // Parse source format: [1] Title - URL
+                const match = source.match(/^\[(\d+)\]\s*(.+?)\s*-\s*(.+)$/);
+                if (match) {
+                  const [, number, title, url] = match;
+                  return (
+                    <div key={index} className="text-xs text-gray-600">
+                      <span className="font-medium">[{number}]</span>{" "}
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline hover:text-blue-800"
+                        title={title}
+                      >
+                        {title.length > 60
+                          ? title.substring(0, 60) + "..."
+                          : title}
+                      </a>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={index} className="text-xs text-gray-600">
+                    {source}
+                  </div>
+                );
+              })}
+            </CollapsibleContent>
+          </Collapsible>
+        );
+      }
+    }
+
+    return (
+      <div>
+        {formattedContent}
+        {formattedSources}
+      </div>
+    );
   };
 
-  // Combine database messages with current chat messages
   const allMessages = sessionId ? dbMessages : messages;
   const showLoading = loading || isCreatingSession;
 
   return (
-    <div className="flex flex-col h-full relative">
-      {/* Messages Container */}
+    <div className="flex flex-col h-full">
+      {/* Messages Container - Fixed height with proper scrolling */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 pt-20"
+        className="flex-1 overflow-y-scroll p-4 space-y-4 pt-10"
+        style={{
+          height: "calc(100vh - 200px)",
+          minHeight: "400px",
+        }}
       >
         {showLoading && allMessages.length === 0 ? (
           <div className="flex items-center justify-center py-8">
@@ -291,24 +367,34 @@ export function ChatInterface({
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               Start a conversation
             </h3>
-            <p className="text-gray-500 max-w-md">
-              Ask me anything about your health. I'm here to provide information
-              and guidance, but remember to consult healthcare professionals for
-              serious concerns.
+            <p className="text-gray-500 max-w-md mb-4">
+              Ask me anything about your health. I can search the web for the
+              latest medical information, analyze your symptoms, and provide
+              evidence-based guidance.
             </p>
+            <div className="flex flex-wrap gap-2 justify-center mb-4">
+              <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                <Search className="h-3 w-3 mr-1" />
+                Web Search
+              </Badge>
+              <Badge variant="outline" className="bg-purple-50 text-purple-700">
+                <Brain className="h-3 w-3 mr-1" />
+                Medical Knowledge
+              </Badge>
+              <Badge variant="outline" className="bg-orange-50 text-orange-700">
+                <Activity className="h-3 w-3 mr-1" />
+                Symptom Analysis
+              </Badge>
+            </div>
             {initialMedicalReportIds && initialMedicalReportIds.length > 0 && (
-              <Badge
-                variant="outline"
-                className="mt-4 bg-blue-100 text-blue-700"
-              >
-                <FileText className="h-3 w-3 mr-1" /> Starting chat with{" "}
-                {initialMedicalReportIds.length} medical report(s) as context.
+              <Badge variant="outline" className="bg-green-50 text-green-700">
+                <FileText className="h-3 w-3 mr-1" />
+                {initialMedicalReportIds.length} medical report(s) loaded
               </Badge>
             )}
           </div>
         ) : (
           <>
-            {/* Database Messages */}
             {allMessages.map((message, index) => (
               <div
                 key={sessionId ? message.id : message.id}
@@ -334,7 +420,7 @@ export function ChatInterface({
                 </Avatar>
 
                 <Card
-                  className={`max-w-[80%] ${
+                  className={`max-w-[85%] ${
                     message.role === "user"
                       ? "bg-blue-500 text-white"
                       : "bg-white border-gray-200"
@@ -352,6 +438,7 @@ export function ChatInterface({
                     </div>
                     {message.role === "assistant" && (
                       <Badge variant="secondary" className="mt-2 text-xs">
+                        <Bot className="h-3 w-3 mr-1" />
                         AI Assistant
                       </Badge>
                     )}
@@ -389,7 +476,7 @@ export function ChatInterface({
                   </Avatar>
 
                   <Card
-                    className={`max-w-[80%] ${
+                    className={`max-w-[85%] ${
                       message.role === "user"
                         ? "bg-blue-500 text-white"
                         : "bg-white border-gray-200"
@@ -407,6 +494,7 @@ export function ChatInterface({
                       </div>
                       {message.role === "assistant" && (
                         <Badge variant="secondary" className="mt-2 text-xs">
+                          <Bot className="h-3 w-3 mr-1" />
                           AI Assistant
                         </Badge>
                       )}
@@ -456,8 +544,8 @@ export function ChatInterface({
         </div>
       )}
 
-      {/* Input Form */}
-      <div className="border-t bg-white p-4">
+      {/* Input Form - Fixed at bottom */}
+      <div className="border-t bg-white p-4 flex-shrink-0">
         <form onSubmit={onSubmit} className="flex space-x-2">
           <Input
             value={input}
@@ -475,8 +563,8 @@ export function ChatInterface({
           </Button>
         </form>
         <p className="text-xs text-gray-500 mt-2 text-center">
-          This AI provides general health information only. Consult healthcare
-          professionals for medical advice.
+          Enhanced AI with web search, medical knowledge, and symptom analysis.
+          Consult healthcare professionals for medical advice.
         </p>
       </div>
     </div>

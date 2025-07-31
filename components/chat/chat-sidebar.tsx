@@ -64,8 +64,8 @@ export function ChatSidebar({
   };
 
   return (
-    <Card className="flex flex-col h-full border-r-0 rounded-r-none">
-      <CardContent className="p-4 flex flex-col flex-1">
+    <Card className="flex flex-col h-full border-r-0 rounded-r-none pt-5">
+      <CardContent className="px-4 flex flex-col flex-1">
         <Button
           onClick={handleNewChatClick}
           className="w-full mb-4 bg-blue-500 hover:bg-blue-600"
