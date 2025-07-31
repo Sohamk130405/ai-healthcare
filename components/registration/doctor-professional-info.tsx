@@ -189,7 +189,7 @@ export function DoctorProfessionalInfo({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="consultationFee">Consultation Fee (USD) *</Label>
+            <Label htmlFor="consultationFee">Consultation Fee (INR) *</Label>
             <Input
               id="consultationFee"
               type="number"

@@ -18,7 +18,7 @@ import {
   MapPin,
   Star,
   CheckCircle,
-  DollarSign,
+  IndianRupee,
   CalendarIcon,
   Loader2,
 } from "lucide-react";
@@ -237,7 +237,7 @@ export function BookingModal({ doctor, open, onClose }: BookingModalProps) {
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-muted-foreground" />
+                  <IndianRupee className="h-5 w-5 text-muted-foreground" />
                   <span className="text-lg font-semibold">
                     ${doctor.consultationFee}
                   </span>

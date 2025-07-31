@@ -9,11 +9,10 @@ import {
   MapPin,
   Clock,
   Calendar,
-  DollarSign,
+  IndianRupee,
   Award,
   Phone,
 } from "lucide-react";
-import Link from "next/link";
 
 interface Doctor {
   id: string;
@@ -194,7 +193,7 @@ export function DoctorList({
               <div className="flex flex-col items-center lg:items-end gap-3 lg:min-w-[200px]">
                 <div className="text-center lg:text-right">
                   <div className="flex items-center justify-center lg:justify-end gap-1">
-                    <DollarSign className="h-5 w-5 text-gray-600" />
+                    <IndianRupee className="h-5 w-5 text-gray-600" />
                     <span className="text-2xl font-bold text-gray-900">
                       {doctor.consultationFee}
                     </span>
@@ -210,7 +209,6 @@ export function DoctorList({
                     <Calendar className="h-4 w-4 mr-2" />
                     Book Appointment
                   </Button>
-                  
                 </div>
 
                 <div className="text-center lg:text-right">
