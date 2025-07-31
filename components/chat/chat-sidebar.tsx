@@ -52,7 +52,7 @@ export function ChatSidebar({
 
   React.useEffect(() => {
     fetchSessions();
-  }, [fetchSessions]);
+  }, [fetchSessions, currentSessionId]);
 
   const handleNewChatClick = () => {
     setIsModalOpen(true);
@@ -86,8 +86,8 @@ export function ChatSidebar({
             <p>Start a new conversation!</p>
           </div>
         ) : (
-          <ScrollArea className="flex-1 pr-2">
-            <div className="space-y-2">
+          <div className="pr-2 px-4 pb-4 ">
+            <div className="space-y-2 overflow-y-scroll h-[500px]">
               {sessions.map((session) => (
                 <Button
                   key={session.id}
@@ -122,7 +122,7 @@ export function ChatSidebar({
                 </Button>
               ))}
             </div>
-          </ScrollArea>
+          </div>
         )}
       </CardContent>
       <MedicalReportSelectionModal

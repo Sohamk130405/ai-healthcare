@@ -5,7 +5,7 @@ import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { ChatMessages, ChatSessions, MedicalReports } from "@/config/schema";
 import { eq, asc, inArray } from "drizzle-orm";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
 
 const sql = neon(process.env.DATABASE_URL!);
 const db = drizzle(sql);
@@ -36,10 +36,10 @@ function cleanMarkdownText(text: string): string {
 export async function POST(req: NextRequest) {
   try {
     const user = await currentUser();
-         if (!user) {
-           return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-         }
-        const userEmail = user.primaryEmailAddress?.emailAddress; // Replace with actual email from Clerk
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userEmail = user.primaryEmailAddress?.emailAddress!; // Replace with actual email from Clerk
 
     if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
       return NextResponse.json(

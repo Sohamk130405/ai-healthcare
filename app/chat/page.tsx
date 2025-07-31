@@ -21,7 +21,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-[calc(100svh-64px)]">
+    <div className="flex h-full">
       <div className="w-1/4 min-w-[250px] max-w-[350px] border-r">
         <ChatSidebar
           onSelectSession={handleSelectSession}

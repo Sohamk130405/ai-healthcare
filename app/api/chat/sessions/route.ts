@@ -3,7 +3,7 @@ import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { ChatSessions } from "@/config/schema";
 import { eq, desc } from "drizzle-orm";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
 
 const sql = neon(process.env.DATABASE_URL!);
 const db = drizzle(sql);

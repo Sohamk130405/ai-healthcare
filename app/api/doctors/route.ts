@@ -1,74 +1,33 @@
-import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/config/db";
-import { Doctors, Appointments } from "@/config/schema";
+import { Doctors, Users } from "@/config/schema";
 import { eq } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const { doctorEmail, rating, appointmentId } = await req.json();
-
-    if (
-      !doctorEmail ||
-      typeof rating !== "number" ||
-      rating < 1 ||
-      rating > 5
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid input: doctorEmail and rating (1-5) are required.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Check if doctor exists
-    const doctor = (
-      await db.select().from(Doctors).where(eq(Doctors.email, doctorEmail))
-    )[0];
-
-    if (!doctor) {
-      return NextResponse.json(
-        { success: false, error: "Doctor not found." },
-        { status: 404 }
-      );
-    }
-
-    // Update appointment to mark as rated if appointmentId is provided
-    if (appointmentId) {
-      await db
-        .update(Appointments)
-        .set({ hasRated: true })
-        .where(eq(Appointments.id, appointmentId));
-    }
-
-    // Calculate new average rating
-    const currentTotalRating = (doctor.rating || 0) * (doctor.reviewCount || 0);
-    const newReviewCount = (doctor.reviewCount || 0) + 1;
-    const newAverageRating = (currentTotalRating + rating) / newReviewCount;
-
-    // Update doctor's rating and review count
-    await db
-      .update(Doctors)
-      .set({
-        rating: Number.parseFloat(newAverageRating.toFixed(2)),
-        reviewCount: newReviewCount,
+    // Join Doctors with Users to get name, city, phone, etc.
+    const doctors = await db
+      .select({
+        id: Doctors.email, // or a separate id if you have one
+        name: Users.name,
+        email: Doctors.email,
+        specialization: Doctors.specialization,
+        qualifications: Doctors.qualifications,
+        licenseNumber: Doctors.licenseNumber,
+        consultationFee: Doctors.consultationFee,
+        workingHours: Doctors.workingHours,
+        phoneNumber: Users.phoneNumber,
+        city: Users.city,
+        rating: Doctors.rating,
+        reviewCount: Doctors.reviewCount,
       })
-      .where(eq(Doctors.email, doctorEmail));
+      .from(Doctors)
+      .leftJoin(Users, eq(Doctors.email, Users.email));
 
+    return NextResponse.json({ doctors });
+  } catch (error: any) {
     return NextResponse.json(
-      {
-        success: true,
-        message: "Doctor rating updated successfully.",
-        newRating: Number.parseFloat(newAverageRating.toFixed(2)),
-        reviewCount: newReviewCount,
-      },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error("Error rating doctor:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to update doctor rating." },
+      { error: error.message || "Failed to fetch doctors" },
       { status: 500 }
     );
   }

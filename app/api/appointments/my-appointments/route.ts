@@ -1,7 +1,7 @@
 import { db } from "@/config/db";
 import { Appointments, Users, Doctors } from "@/config/schema";
 import { currentUser } from "@clerk/nextjs/server";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
       .where(
         eq(Appointments.patientEmail, user.primaryEmailAddress?.emailAddress!)
       )
-      .orderBy(Appointments.date, Appointments.startTime);
+      .orderBy(desc(Appointments.date), Appointments.startTime);
 
     return NextResponse.json({ success: true, appointments });
   } catch (error: any) {
