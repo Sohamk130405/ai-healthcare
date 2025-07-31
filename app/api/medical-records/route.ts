@@ -2,11 +2,15 @@ import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/config/db";
 import { MedicalReports } from "@/config/schema";
 import { eq, desc } from "drizzle-orm";
+import { currentUser } from "@clerk/nextjs/server";
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const userEmail = searchParams.get("userEmail");
+    const user = await currentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userEmail = user.primaryEmailAddress?.emailAddress; // Replace with actual email from Clerk
 
     if (!userEmail) {
       return NextResponse.json(

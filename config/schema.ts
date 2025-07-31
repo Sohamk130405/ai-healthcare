@@ -100,6 +100,7 @@ export const Appointments = pgTable("appointments", {
     .$default(() => "pending"), // e.g. pending, confirmed, cancelled, completed
   notes: text("notes"),
   reason: text("reason"),
+  hasRated: boolean("has_rated").default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -113,6 +114,7 @@ export const ChatSessions = pgTable("chat_sessions", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   status: varchar("status", { length: 50 }).$default(() => "active"),
+  medicalReportIds: json("medical_report_ids"),
 });
 
 export const ChatMessages = pgTable("chat_messages", {

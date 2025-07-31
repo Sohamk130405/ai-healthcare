@@ -2,65 +2,42 @@
 
 import type React from "react";
 
-import { useState, useRef, useEffect, use } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Send, Bot, User, AlertCircle, RefreshCw } from "lucide-react";
+import { Send, Bot, User, ChevronDown, Loader2 } from "lucide-react";
 import { useChat } from "ai/react";
 import { useUser } from "@clerk/nextjs";
 
-interface ChatInterfaceProps {
-  sessionId?: number;
-  onSessionCreated?: (sessionId: number) => void;
-}
-
-interface DatabaseMessage {
+// Updated Message interface to use 'role' for consistency with AI SDK's UIMessage
+interface Message {
   id: number;
   content: string;
-  sender: string;
+  role: "user" | "assistant"; // Changed from 'sender' to 'role'
   createdAt: string;
-  metadata?: any;
+}
+
+interface ChatInterfaceProps {
+  sessionId: string | null;
+  onSessionCreated: (sessionId: string) => void;
+  initialMedicalReportIds?: number[]; // New prop for initial context
 }
 
 export function ChatInterface({
   sessionId,
   onSessionCreated,
+  initialMedicalReportIds,
 }: ChatInterfaceProps) {
+  const [dbMessages, setDbMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const [showDisclaimer, setShowDisclaimer] = useState(true);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [dbMessages, setDbMessages] = useState<DatabaseMessage[]>([]);
-  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const { user } = useUser();
-  // Load conversation history when sessionId changes
-  useEffect(() => {
-    if (sessionId) {
-      loadConversationHistory();
-    } else {
-      setDbMessages([]);
-    }
-  }, [sessionId]);
-
-  const loadConversationHistory = async () => {
-    if (!sessionId) return;
-
-    setIsLoadingHistory(true);
-    try {
-      const response = await fetch(`/api/chat/sessions/${sessionId}/messages`);
-      if (response.ok) {
-        const data = await response.json();
-        setDbMessages(data.messages || []);
-      }
-    } catch (error) {
-      console.error("Error loading conversation history:", error);
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  };
 
   const {
     messages,
@@ -68,66 +45,108 @@ export function ChatInterface({
     handleInputChange,
     handleSubmit,
     isLoading,
-    error,
-    reload,
     setMessages,
   } = useChat({
     api: "/api/chat",
     body: {
-      sessionId,
+      sessionId: sessionId,
     },
     onFinish: async () => {
-      // Reload conversation history after AI response and clear current messages
+      // After AI response, clear useChat messages and reload from database
       if (sessionId) {
-        await loadConversationHistory();
-        setMessages([]); // Clear the useChat messages to avoid duplicates
+        setMessages([]);
+        await loadMessages();
       }
     },
   });
 
-  // Handle scroll behavior
-  const handleScroll = () => {
-    if (messagesContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } =
-        messagesContainerRef.current;
-      const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
-      setShouldAutoScroll(isAtBottom);
+  // Load messages from database when session changes
+  useEffect(() => {
+    if (sessionId) {
+      loadMessages();
+      setMessages([]); // Clear useChat messages when switching sessions
+    } else {
+      setDbMessages([]);
+    }
+  }, [sessionId, setMessages]);
+
+  // Auto-scroll logic
+  useEffect(() => {
+    if (shouldAutoScroll) {
+      scrollToBottom();
+    }
+  }, [dbMessages, messages, shouldAutoScroll]);
+
+  // Handle scroll detection
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+
+      setShouldAutoScroll(isNearBottom);
+      setShowScrollButton(
+        !isNearBottom && (dbMessages.length > 0 || messages.length > 0)
+      );
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [dbMessages.length, messages.length]);
+
+  const loadMessages = async () => {
+    if (!sessionId) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/chat/sessions/${sessionId}/messages`);
+      const data = await response.json();
+
+      if (data.messages) {
+        // Map 'sender' from DB to 'role' for consistency
+        setDbMessages(
+          data.messages.map((msg: any) => ({
+            ...msg,
+            role: msg.sender === "user" ? "user" : "assistant",
+          }))
+        );
+      }
+    } catch (error) {
+      console.error("Error loading messages:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const scrollToBottom = () => {
-    if (shouldAutoScroll && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Only scroll when new messages arrive and user is at bottom
-  useEffect(() => {
+  const handleScrollToBottom = () => {
+    setShouldAutoScroll(true);
     scrollToBottom();
-  }, [dbMessages, messages, isLoading]);
-
-  const formatTime = (date: Date | string) => {
-    const dateObj = typeof date === "string" ? new Date(date) : date;
-    return dateObj.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
-  // Create new session if none exists and user sends first message
-  const handleFormSubmit = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    // If no session exists, create one with initial context if available
     if (!sessionId && input.trim()) {
       try {
         const response = await fetch("/api/chat/sessions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: input.slice(0, 50) + "..." }),
+          body: JSON.stringify({
+            title: input.slice(0, 50) + (input.length > 50 ? "..." : ""),
+            medicalReportIds: initialMedicalReportIds, // Pass selected report IDs
+          }),
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          onSessionCreated?.(data.session.id);
+        const data = await response.json();
+        if (data.success) {
+          onSessionCreated(data.session.id.toString());
         }
       } catch (error) {
         console.error("Error creating session:", error);
@@ -137,262 +156,251 @@ export function ChatInterface({
     handleSubmit(e);
   };
 
-  // Use only database messages for existing sessions, or current messages for new sessions
-  const displayMessages = sessionId ? dbMessages : messages;
+  // Format message content for better display
+  const formatMessageContent = (content: string) => {
+    // Split by double newlines to create paragraphs
+    const paragraphs = content.split("\n\n").filter((p) => p.trim());
 
-  // Convert database messages to the format expected by the UI
-  const formattedMessages = displayMessages.map((msg, index) => {
-    if ("sender" in msg) {
-      // Database message
-      return {
-        id: msg.id.toString(),
-        role: msg.sender === "user" ? "user" : "assistant",
-        content: msg.content,
-        createdAt: new Date(msg.createdAt),
-      };
-    } else {
-      // useChat message
-      return {
-        ...msg,
-        createdAt: msg.createdAt || new Date(),
-      };
-    }
-  });
+    return paragraphs.map((paragraph, index) => {
+      // Check if paragraph contains bullet points
+      if (paragraph.includes("•")) {
+        const lines = paragraph.split("\n");
+        return (
+          <div key={index} className="mb-3">
+            {lines.map((line, lineIndex) => {
+              if (line.trim().startsWith("•")) {
+                return (
+                  <div key={lineIndex} className="flex items-start mb-1">
+                    <span className="text-blue-500 mr-2 mt-1">•</span>
+                    <span className="flex-1">
+                      {line.replace("•", "").trim()}
+                    </span>
+                  </div>
+                );
+              }
+              return (
+                <p key={lineIndex} className="mb-2">
+                  {line}
+                </p>
+              );
+            })}
+          </div>
+        );
+      }
 
-  // Add current streaming messages if we're in a new session or actively chatting
-  const allMessages = [
-    ...formattedMessages,
-    ...(!sessionId
-      ? messages.map((msg) => ({
-          ...msg,
-          createdAt: msg.createdAt || new Date(),
-        }))
-      : []),
-  ];
+      return (
+        <p key={index} className="mb-3 last:mb-0">
+          {paragraph}
+        </p>
+      );
+    });
+  };
+
+  // Combine database messages with current chat messages
+  const allMessages = sessionId ? dbMessages : messages;
 
   return (
     <div className="flex flex-col h-full">
-      {/* Health Disclaimer */}
-      {showDisclaimer && (
-        <Card className="mb-4 border-amber-200 bg-amber-50">
-          <CardContent className="p-4">
-            <div className="flex items-start space-x-3">
-              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm text-amber-800">
-                  <strong>Health Disclaimer:</strong> This AI assistant provides
-                  general health information only. Always consult healthcare
-                  professionals for medical advice. In emergencies, contact
-                  emergency services immediately.
-                </p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="mt-2 text-amber-700 hover:text-amber-800 p-0 h-auto"
-                  onClick={() => setShowDisclaimer(false)}
-                >
-                  Dismiss
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Messages */}
+      {/* Messages Container */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto space-y-4 p-4"
-        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth"
         style={{ scrollBehavior: "smooth" }}
       >
-        {isLoadingHistory && (
-          <div className="text-center py-4">
-            <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-gray-400" />
-            <p className="text-sm text-gray-500">
-              Loading conversation history...
-            </p>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+            <span className="ml-2 text-gray-500">Loading conversation...</span>
           </div>
-        )}
-
-        {allMessages.length === 0 && !isLoadingHistory && (
-          <div className="text-center py-8">
-            <Bot className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+        ) : allMessages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Bot className="h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Welcome to AI Health Assistant
+              Start a conversation
             </h3>
-            <p className="text-gray-500 max-w-md mx-auto">
-              I'm here to help with general health questions and provide
-              information. How can I assist you today?
+            <p className="text-gray-500 max-w-md">
+              Ask me anything about your health. I'm here to provide information
+              and guidance, but remember to consult healthcare professionals for
+              serious concerns.
             </p>
+            {initialMedicalReportIds && initialMedicalReportIds.length > 0 && (
+              <Badge
+                variant="outline"
+                className="mt-4 bg-blue-100 text-blue-700"
+              >
+                Starting chat with {initialMedicalReportIds.length} medical
+                report(s) as context.
+              </Badge>
+            )}
           </div>
-        )}
+        ) : (
+          <>
+            {/* Database Messages */}
+            {allMessages.map((message, index) => (
+              <div
+                key={sessionId ? message.id : message.id}
+                className={`flex items-start space-x-3 ${
+                  message.role === "user"
+                    ? "flex-row-reverse space-x-reverse"
+                    : ""
+                }`}
+              >
+                <Avatar className="h-8 w-8 flex-shrink-0">
+                  {message.role === "user" ? (
+                    <>
+                      <AvatarImage src={user?.imageUrl || "/placeholder.svg"} />
+                      <AvatarFallback>
+                        <User className="h-4 w-4" />
+                      </AvatarFallback>
+                    </>
+                  ) : (
+                    <AvatarFallback className="bg-blue-100">
+                      <Bot className="h-4 w-4 text-blue-600" />
+                    </AvatarFallback>
+                  )}
+                </Avatar>
 
-        {allMessages.map((message, index) => (
-          <div
-            key={`${message.id}-${index}`}
-            className={`flex items-start space-x-3 ${
-              message.role === "user"
-                ? "flex-row-reverse space-x-reverse w-fit ml-auto"
-                : ""
-            }`}
-          >
-            <Avatar className="h-8 w-8">
-              {message.role === "user" ? (
-                <>
-                  <AvatarImage src={user?.imageUrl} />
-                  <AvatarFallback>
-                    <User className="h-4 w-4" />
-                  </AvatarFallback>
-                </>
-              ) : (
-                <>
-                  <AvatarImage src="/placeholder.svg?height=32&width=32&text=AI" />
+                <Card
+                  className={`max-w-[80%] ${
+                    message.role === "user"
+                      ? "bg-blue-500 text-white"
+                      : "bg-white border-gray-200"
+                  }`}
+                >
+                  <CardContent className="p-3">
+                    <div className="text-sm">
+                      {message.role === "user" ? (
+                        <p>{message.content}</p>
+                      ) : (
+                        <div className="prose prose-sm max-w-none">
+                          {formatMessageContent(message.content)}
+                        </div>
+                      )}
+                    </div>
+                    {message.role === "assistant" && (
+                      <Badge variant="secondary" className="mt-2 text-xs">
+                        AI Assistant
+                      </Badge>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
+
+            {/* Current streaming messages (only for new sessions) */}
+            {!sessionId &&
+              messages.map((message, index) => (
+                <div
+                  key={message.id}
+                  className={`flex items-start space-x-3 ${
+                    message.role === "user"
+                      ? "flex-row-reverse space-x-reverse"
+                      : ""
+                  }`}
+                >
+                  <Avatar className="h-8 w-8 flex-shrink-0">
+                    {message.role === "user" ? (
+                      <>
+                        <AvatarImage
+                          src={user?.imageUrl || "/placeholder.svg"}
+                        />
+                        <AvatarFallback>
+                          <User className="h-4 w-4" />
+                        </AvatarFallback>
+                      </>
+                    ) : (
+                      <AvatarFallback className="bg-blue-100">
+                        <Bot className="h-4 w-4 text-blue-600" />
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+
+                  <Card
+                    className={`max-w-[80%] ${
+                      message.role === "user"
+                        ? "bg-blue-500 text-white"
+                        : "bg-white border-gray-200"
+                    }`}
+                  >
+                    <CardContent className="p-3">
+                      <div className="text-sm">
+                        {message.role === "user" ? (
+                          <p>{message.content}</p>
+                        ) : (
+                          <div className="prose prose-sm max-w-none">
+                            {formatMessageContent(message.content)}
+                          </div>
+                        )}
+                      </div>
+                      {message.role === "assistant" && (
+                        <Badge variant="secondary" className="mt-2 text-xs">
+                          AI Assistant
+                        </Badge>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              ))}
+
+            {/* Loading indicator */}
+            {isLoading && (
+              <div className="flex items-start space-x-3">
+                <Avatar className="h-8 w-8 flex-shrink-0">
                   <AvatarFallback className="bg-blue-100">
                     <Bot className="h-4 w-4 text-blue-600" />
                   </AvatarFallback>
-                </>
-              )}
-            </Avatar>
-            <div
-              className={`flex-1 max-w-3xl ${
-                message.role === "user" ? "text-right" : ""
-              }`}
-            >
-              <div className="flex items-center space-x-2 mb-1">
-                <Badge
-                  variant={message.role === "user" ? "default" : "secondary"}
-                >
-                  {message.role === "user" ? "You" : "AI Assistant"}
-                </Badge>
-                <span className="text-xs text-gray-500">
-                  {formatTime(message.createdAt)}
-                </span>
-              </div>
-              <Card
-                className={`${
-                  message.role === "user"
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-gray-50 border-gray-200"
-                }`}
-              >
-                <CardContent className="p-3">
-                  <p className="text-sm whitespace-pre-wrap">
-                    {message.content}
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        ))}
-
-        {isLoading && (
-          <div className="flex items-start space-x-3">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-blue-100">
-                <Bot className="h-4 w-4 text-blue-600" />
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <Badge variant="secondary" className="mb-2">
-                AI Assistant
-              </Badge>
-              <Card className="bg-gray-50 border-gray-200">
-                <CardContent className="p-3">
-                  <div className="flex items-center space-x-2">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "0.1s" }}
-                      ></div>
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "0.2s" }}
-                      ></div>
+                </Avatar>
+                <Card className="bg-white border-gray-200">
+                  <CardContent className="p-3">
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                      <span className="text-sm text-gray-500">
+                        AI is thinking...
+                      </span>
                     </div>
-                    <span className="text-sm text-gray-500">
-                      AI is thinking...
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div className="flex items-start space-x-3">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-red-100">
-                <AlertCircle className="h-4 w-4 text-red-600" />
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <Badge variant="destructive" className="mb-2">
-                Error
-              </Badge>
-              <Card className="bg-red-50 border-red-200">
-                <CardContent className="p-3">
-                  <p className="text-sm text-red-800 mb-2">
-                    Sorry, I encountered an error. This might be due to API
-                    configuration issues.
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => reload()}
-                    className="text-red-700 border-red-300 hover:bg-red-100"
-                  >
-                    <RefreshCw className="h-3 w-3 mr-1" />
-                    Try Again
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </>
         )}
 
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Scroll to bottom button - only show when not at bottom */}
-      {!shouldAutoScroll && (
-        <div className="absolute bottom-20 right-8">
+      {/* Scroll to bottom button */}
+      {showScrollButton && (
+        <div className="absolute bottom-20 right-6">
           <Button
-            variant="outline"
+            onClick={handleScrollToBottom}
             size="sm"
-            onClick={() => {
-              setShouldAutoScroll(true);
-              scrollToBottom();
-            }}
-            className="rounded-full shadow-lg bg-white hover:bg-gray-50"
+            className="rounded-full shadow-lg bg-blue-500 hover:bg-blue-600"
           >
-            ↓ Scroll to bottom
+            <ChevronDown className="h-4 w-4" />
           </Button>
         </div>
       )}
 
       {/* Input Form */}
       <div className="border-t bg-white p-4">
-        <form onSubmit={handleFormSubmit} className="flex space-x-2">
+        <form onSubmit={onSubmit} className="flex space-x-2">
           <Input
             value={input}
             onChange={handleInputChange}
-            placeholder={
-              sessionId
-                ? "Ask me about your health concerns..."
-                : "Enter Session Title"
-            }
+            placeholder="Ask me about your health..."
             className="flex-1"
             disabled={isLoading}
           />
-          <Button type="submit" disabled={isLoading || !input.trim()}>
+          <Button
+            type="submit"
+            disabled={isLoading || !input.trim()}
+            className="bg-blue-500 hover:bg-blue-600"
+          >
             <Send className="h-4 w-4" />
           </Button>
         </form>
         <p className="text-xs text-gray-500 mt-2 text-center">
-          This AI provides general information only. Always consult healthcare
+          This AI provides general health information only. Consult healthcare
           professionals for medical advice.
         </p>
       </div>

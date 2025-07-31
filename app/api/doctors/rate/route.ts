@@ -1,11 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/config/db";
-import { Doctors, Appointments } from "@/config/schema";
+import { Doctors } from "@/config/schema";
 import { eq } from "drizzle-orm";
 
 export async function POST(req: NextRequest) {
   try {
-    const { doctorEmail, rating, appointmentId } = await req.json();
+    const { doctorEmail, rating } = await req.json();
 
     if (
       !doctorEmail ||
@@ -22,7 +22,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if doctor exists
     const doctor = (
       await db.select().from(Doctors).where(eq(Doctors.email, doctorEmail))
     )[0];
@@ -34,20 +33,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Update appointment to mark as rated if appointmentId is provided
-    if (appointmentId) {
-      await db
-        .update(Appointments)
-        .set({ hasRated: true })
-        .where(eq(Appointments.id, appointmentId));
-    }
-
-    // Calculate new average rating
     const currentTotalRating = (doctor.rating || 0) * (doctor.reviewCount || 0);
     const newReviewCount = (doctor.reviewCount || 0) + 1;
     const newAverageRating = (currentTotalRating + rating) / newReviewCount;
 
-    // Update doctor's rating and review count
     await db
       .update(Doctors)
       .set({
@@ -57,12 +46,7 @@ export async function POST(req: NextRequest) {
       .where(eq(Doctors.email, doctorEmail));
 
     return NextResponse.json(
-      {
-        success: true,
-        message: "Doctor rating updated successfully.",
-        newRating: Number.parseFloat(newAverageRating.toFixed(2)),
-        reviewCount: newReviewCount,
-      },
+      { success: true, message: "Doctor rating updated successfully." },
       { status: 200 }
     );
   } catch (error) {

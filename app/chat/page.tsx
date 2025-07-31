@@ -1,76 +1,40 @@
 "use client";
 
 import { useState } from "react";
-import { ChatInterface } from "@/components/chat/chat-interface";
 import { ChatSidebar } from "@/components/chat/chat-sidebar";
-import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
+import { ChatInterface } from "@/components/chat/chat-interface";
 
 export default function ChatPage() {
-  const [activeSessionId, setActiveSessionId] = useState<number>();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [newChatMedicalReportIds, setNewChatMedicalReportIds] = useState<
+    number[] | undefined
+  >(undefined);
 
-  const handleSessionSelect = (sessionId: number) => {
-    setActiveSessionId(sessionId);
-    setSidebarOpen(false); // Close sidebar on mobile
+  const handleSelectSession = (sessionId: string) => {
+    setCurrentSessionId(sessionId);
+    setNewChatMedicalReportIds(undefined); // Clear any pending new chat context
   };
 
-  const handleNewSession = () => {
-    setActiveSessionId(undefined);
-    setSidebarOpen(false); // Close sidebar on mobile
-  };
-
-  const handleSessionCreated = (sessionId: number) => {
-    setActiveSessionId(sessionId);
+  const handleNewChat = (medicalReportIds?: number[]) => {
+    setCurrentSessionId(null); // Deselect current session to start a new one
+    setNewChatMedicalReportIds(medicalReportIds); // Store selected report IDs for the new chat
   };
 
   return (
-    <div className="h-screen flex pt-5">
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-          onClick={() => setSidebarOpen(false)}
+    <div className="flex h-[calc(100svh-64px)]">
+      <div className="w-1/4 min-w-[250px] max-w-[350px] border-r">
+        <ChatSidebar
+          onSelectSession={handleSelectSession}
+          onNewChat={handleNewChat}
+          currentSessionId={currentSessionId}
         />
-      )}
-
-      {/* Sidebar */}
-      <div
-        className={`
-        fixed md:static inset-y-0 left-0 z-50 w-80 transform transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
-      `}
-      >
-        <div className="h-full pt-20 md:pt-0">
-          <ChatSidebar
-            activeSessionId={activeSessionId}
-            onSessionSelect={handleSessionSelect}
-            onNewSession={handleNewSession}
-          />
-        </div>
       </div>
-
-      {/* Main Chat */}
-      <div className="flex-1 flex flex-col">
-        {/* Mobile header */}
-        <div className="md:hidden flex items-center justify-between p-4 bg-white border-b">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <h1 className="font-semibold">AI Health Assistant</h1>
-          <div className="w-10" /> {/* Spacer */}
-        </div>
-
-        <div className="flex-1 overflow-y-scroll">
-          <ChatInterface
-            sessionId={activeSessionId}
-            onSessionCreated={handleSessionCreated}
-          />
-        </div>
+      <div className="flex-1">
+        <ChatInterface
+          sessionId={currentSessionId}
+          onSessionCreated={setCurrentSessionId}
+          initialMedicalReportIds={newChatMedicalReportIds}
+        />
       </div>
     </div>
   );

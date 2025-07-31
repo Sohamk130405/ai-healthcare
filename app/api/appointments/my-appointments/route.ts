@@ -25,6 +25,10 @@ export async function GET(req: NextRequest) {
         endTime: Appointments.endTime,
         status: Appointments.status,
         reason: Appointments.reason,
+        hasRated: Appointments.hasRated,
+        rating: Doctors.rating,
+        reviewCount: Doctors.reviewCount,
+        doctorEmail: Appointments.doctorEmail,
       })
       .from(Appointments)
       .leftJoin(Doctors, eq(Appointments.doctorEmail, Doctors.email))

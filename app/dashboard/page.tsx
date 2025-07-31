@@ -19,6 +19,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Calendar,
@@ -26,7 +27,6 @@ import {
   User,
   FileText,
   Activity,
-  Heart,
   Stethoscope,
   CalendarDays,
   MessageSquare,
@@ -39,19 +39,27 @@ import {
   Download,
   Share2,
   Loader2,
+  Star,
+  CheckCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
+import { useToast } from "@/hooks/use-toast";
+import { StarRating } from "@/components/ui/start-rating";
 
 interface Appointment {
   id: number;
   doctorName: string;
+  doctorEmail: string;
   doctorSpecialization: string;
   date: string;
   startTime: string;
   endTime: string;
+  rating: number;
+  reviewCount: number;
   status: "pending" | "confirmed" | "cancelled" | "completed";
   reason: string;
+  hasRated?: boolean; // Track if user has already rated this appointment
 }
 
 interface MedicalRecord {
@@ -78,7 +86,14 @@ export default function DashboardPage() {
   const [selectedRecord, setSelectedRecord] = useState<MedicalRecord | null>(
     null
   );
+  const [ratingModal, setRatingModal] = useState<{
+    open: boolean;
+    appointment: Appointment | null;
+  }>({ open: false, appointment: null });
+  const [userRating, setUserRating] = useState(0);
+  const [ratingLoading, setRatingLoading] = useState(false);
   const { user } = useUser();
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchMyAppointments();
@@ -90,7 +105,7 @@ export default function DashboardPage() {
       const response = await fetch("/api/appointments/my-appointments");
       const data = await response.json();
       if (data.success) {
-        setAppointments(data.appointments.slice(0, 3)); // Show only recent 3
+        setAppointments(data.appointments.slice(0, 5)); // Show recent 5 for dashboard
       }
     } catch (error) {
       console.error("Error fetching appointments:", error);
@@ -115,6 +130,72 @@ export default function DashboardPage() {
     } finally {
       setRecordsLoading(false);
     }
+  };
+
+  const handleRateDoctor = async () => {
+    if (!ratingModal.appointment || userRating === 0) {
+      toast({
+        title: "Rating Required",
+        description: "Please select a star rating before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setRatingLoading(true);
+    try {
+      const response = await fetch("/api/doctors/rate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          doctorEmail: ratingModal.appointment.doctorEmail,
+          rating: userRating,
+          appointmentId: ratingModal.appointment.id,
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Rating Submitted!",
+          description: `Thank you for rating Dr. ${ratingModal.appointment.doctorName}.`,
+        });
+
+        // Update the appointment to mark as rated
+        setAppointments((prev) =>
+          prev.map((apt) =>
+            apt.id === ratingModal.appointment!.id
+              ? { ...apt, hasRated: true }
+              : apt
+          )
+        );
+
+        setRatingModal({ open: false, appointment: null });
+        setUserRating(0);
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Rating Failed",
+          description: errorData.error || "Could not submit your rating.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Network Error",
+        description: "Could not submit rating due to network issues.",
+        variant: "destructive",
+      });
+    } finally {
+      setRatingLoading(false);
+    }
+  };
+
+  const openRatingModal = (appointment: Appointment) => {
+    console.log(appointment);
+    setRatingModal({ open: true, appointment });
+    setUserRating(0);
   };
 
   const getStatusColor = (status: string) => {
@@ -192,6 +273,11 @@ export default function DashboardPage() {
     new Set(medicalRecords.map((record) => record.reportType))
   );
 
+  // Get appointments that can be rated (confirmed status and not already rated)
+  const ratableAppointments = appointments.filter(
+    (apt) => apt.status === "confirmed" && !apt.hasRated
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50/50 via-purple-50/30 to-pink-50/50 p-6">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -256,11 +342,13 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-100 text-sm font-medium">
-                    Health Score
+                    Pending Ratings
                   </p>
-                  <p className="text-2xl font-bold">85%</p>
+                  <p className="text-2xl font-bold">
+                    {ratableAppointments.length}
+                  </p>
                 </div>
-                <Heart className="h-8 w-8 text-purple-200" />
+                <Star className="h-8 w-8 text-purple-200" />
               </div>
             </CardContent>
           </Card>
@@ -360,13 +448,35 @@ export default function DashboardPage() {
                                   <p className="text-sm font-medium text-gray-900 truncate">
                                     Dr. {appointment.doctorName}
                                   </p>
-                                  <Badge
-                                    className={getStatusColor(
-                                      appointment.status
+                                  <div className="flex items-center gap-2">
+                                    <Badge
+                                      className={getStatusColor(
+                                        appointment.status
+                                      )}
+                                    >
+                                      {appointment.status}
+                                    </Badge>
+                                    {appointment.status === "completed" &&
+                                      !appointment.hasRated && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() =>
+                                            openRatingModal(appointment)
+                                          }
+                                          className="text-xs px-2 py-1 h-6"
+                                        >
+                                          <Star className="h-3 w-3 mr-1" />
+                                          Rate
+                                        </Button>
+                                      )}
+                                    {appointment.hasRated && (
+                                      <div className="flex items-center text-xs text-green-600">
+                                        <CheckCircle className="h-3 w-3 mr-1" />
+                                        Rated
+                                      </div>
                                     )}
-                                  >
-                                    {appointment.status}
-                                  </Badge>
+                                  </div>
                                 </div>
                                 <p className="text-sm text-gray-500">
                                   {appointment.doctorSpecialization}
@@ -377,6 +487,19 @@ export default function DashboardPage() {
                                   <Clock className="ml-3 mr-1 h-3 w-3" />
                                   {formatTime(appointment.startTime)} -{" "}
                                   {formatTime(appointment.endTime)}
+                                  {appointment.rating && (
+                                    <div className="flex items-center">
+                                      <Star className="h-4 w-4 text-yellow-400 mr-1 fill-current" />
+                                      <span className="font-medium">
+                                        {appointment.rating}
+                                      </span>
+                                      {appointment.reviewCount && (
+                                        <span className="ml-1">
+                                          ({appointment.reviewCount} reviews)
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                                 <p className="text-xs text-gray-600 mt-1">
                                   {appointment.reason}
@@ -466,7 +589,7 @@ export default function DashboardPage() {
                         </div>
                       ) : filteredRecords.length > 0 ? (
                         <div className="space-y-4">
-                          {filteredRecords.map((record) => (
+                          {filteredRecords.slice(0, 3).map((record) => (
                             <Card
                               key={record.id}
                               className="hover:shadow-lg transition-shadow border-0 shadow-md"
@@ -547,6 +670,13 @@ export default function DashboardPage() {
                               </CardContent>
                             </Card>
                           ))}
+                          {filteredRecords.length > 3 && (
+                            <div className="text-center pt-4">
+                              <Button variant="outline" asChild>
+                                <Link href="/upload">View All Records</Link>
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="text-center py-12">
@@ -657,6 +787,100 @@ export default function DashboardPage() {
             </Card>
           </div>
         </div>
+
+        {/* Rating Modal */}
+        <Dialog
+          open={ratingModal.open}
+          onOpenChange={(open) => {
+            if (!open) {
+              setRatingModal({ open: false, appointment: null });
+              setUserRating(0);
+            }
+          }}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Rate Your Experience</DialogTitle>
+            </DialogHeader>
+
+            {ratingModal.appointment && (
+              <div className="space-y-6">
+                <div className="text-center space-y-2">
+                  <Avatar className="h-16 w-16 mx-auto">
+                    <AvatarImage
+                      src={`/placeholder.svg?height=64&width=64&text=${ratingModal.appointment.doctorName
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}`}
+                    />
+                    <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+                      {ratingModal.appointment.doctorName
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <h3 className="text-lg font-semibold">
+                    Dr. {ratingModal.appointment.doctorName}
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    {ratingModal.appointment.doctorSpecialization}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Appointment on {formatDate(ratingModal.appointment.date)}
+                  </p>
+                </div>
+
+                <div className="text-center space-y-4">
+                  <p className="text-sm text-gray-700">
+                    How would you rate your experience with this doctor?
+                  </p>
+                  <div className="flex justify-center">
+                    <StarRating
+                      initialRating={userRating}
+                      onRatingChange={setUserRating}
+                      size="lg"
+                    />
+                  </div>
+                  {userRating > 0 && (
+                    <p className="text-sm text-gray-600">
+                      {userRating === 1 && "Poor"}
+                      {userRating === 2 && "Fair"}
+                      {userRating === 3 && "Good"}
+                      {userRating === 4 && "Very Good"}
+                      {userRating === 5 && "Excellent"}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setRatingModal({ open: false, appointment: null });
+                  setUserRating(0);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleRateDoctor}
+                disabled={ratingLoading || userRating === 0}
+              >
+                {ratingLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  "Submit Rating"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Medical Record Detail Modal */}
         {selectedRecord && (
